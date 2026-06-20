@@ -47,7 +47,10 @@ def _cfg() -> dict:
     }
 
 
-def _post(messages: list[dict], model: str, temperature: float) -> str:
+DEFAULT_MAX_TOKENS = 4096
+
+
+def _post(messages: list[dict], model: str) -> str:
     cfg = _cfg()
     resp = httpx.post(
         f"{cfg['base_url']}/chat/completions",
@@ -55,21 +58,26 @@ def _post(messages: list[dict], model: str, temperature: float) -> str:
             "Authorization": f"Bearer {cfg['key']}",
             "Content-Type": "application/json",
         },
-        json={"model": model, "messages": messages, "temperature": temperature},
+        json={
+            "model": model,
+            "messages": messages,
+            "max_tokens": int(os.environ.get("STUDIO_LLM_MAX_TOKENS", DEFAULT_MAX_TOKENS)),
+        },
         timeout=180,
     )
-    resp.raise_for_status()
+    if resp.status_code >= 400:
+        raise RuntimeError(f"LLM {resp.status_code}: {resp.text[:600]}")
     return resp.json()["choices"][0]["message"]["content"]
 
 
-def chat(messages: list[dict], model: str | None = None, temperature: float = 0.7) -> str:
+def chat(messages: list[dict], model: str | None = None) -> str:
     """Plain text completion."""
-    return _post(messages, model or _cfg()["model"], temperature)
+    return _post(messages, model or _cfg()["model"])
 
 
-def chat_json(messages: list[dict], model: str | None = None, temperature: float = 0.4) -> dict:
+def chat_json(messages: list[dict], model: str | None = None) -> dict:
     """Completion that must return JSON. Retries once with a stricter nudge."""
-    text = _post(messages, model or _cfg()["model"], temperature)
+    text = _post(messages, model or _cfg()["model"])
     parsed = _extract_json(text)
     if parsed is not None:
         return parsed
@@ -77,14 +85,14 @@ def chat_json(messages: list[dict], model: str | None = None, temperature: float
         {"role": "assistant", "content": text},
         {"role": "user", "content": "That was not valid JSON. Return ONLY the JSON object, no prose, no code fences."},
     ]
-    text = _post(retry, model or _cfg()["model"], 0.0)
+    text = _post(retry, model or _cfg()["model"])
     parsed = _extract_json(text)
     if parsed is None:
         raise ValueError(f"Model did not return valid JSON:\n{text[:500]}")
     return parsed
 
 
-def vision(image: str, prompt: str, model: str | None = None, temperature: float = 0.2) -> str:
+def vision(image: str, prompt: str, model: str | None = None) -> str:
     """Ask a vision model about an image (local path or http URL)."""
     url = image if image.startswith("http") else _data_url(image)
     messages = [
@@ -96,7 +104,7 @@ def vision(image: str, prompt: str, model: str | None = None, temperature: float
             ],
         }
     ]
-    return _post(messages, model or _cfg()["vision_model"], temperature)
+    return _post(messages, model or _cfg()["vision_model"])
 
 
 def vision_json(image: str, prompt: str, model: str | None = None) -> dict:

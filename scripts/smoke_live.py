@@ -6,7 +6,7 @@ from studio_mcp import server
 
 os.environ["STUDIO_ROOT"] = tempfile.mkdtemp()
 
-plan_shots = server.plan_shots.fn
+plan_shots = getattr(server.plan_shots, "fn", server.plan_shots)
 brief = "MARÉA — wordless coastal slow-burn. A woman in grey returns to a tide-worn shore at dusk; the sea remembers her. Diegetic SFX only."
 plan = plan_shots(brief, project="marea", n_shots=4)
 
