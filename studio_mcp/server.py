@@ -12,7 +12,7 @@ import hashlib
 
 from mcp.server.fastmcp import FastMCP
 
-from . import llm, render, state
+from . import llm, prompts, render, state
 from .prompts import (
     PLAN_SYSTEM,
     QC_SYSTEM,
@@ -53,27 +53,48 @@ def plan_shots(brief: str, project: str, n_shots: int = 12) -> dict:
 def lock_campaign(
     project: str,
     aspect: str,
-    stock: str,
+    camera: str,
+    day_stock: str,
     hex_palette: list[str],
     elements: list[str],
+    night_stock: str = "",
+    vibe: str = "",
+    style_header: str = "",
+    lens_map: dict | None = None,
     audio: str = "diegetic SFX only, no music; lip-sync where dialogue",
 ) -> dict:
-    """Lock the campaign look so every shot stays on-model.
+    """Lock the campaign look once — every shot's prompt inherits it.
 
     Args:
         project: project name.
-        aspect: aspect ratio, e.g. "2.39:1" or "9:16".
-        stock: film stock / look, e.g. "Kodak Vision3 500T, soft handheld".
-        hex_palette: HEX colors defining the palette, e.g. ["#1b2a3a", "#c8a15a"].
-        elements: recurring elements/characters to keep consistent.
+        aspect: Soul aspect ratio — one of 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3.
+            (No 2.39:1 in Soul — use 16:9 and crop to scope in post.)
+        camera: camera + film system, e.g. "35mm film".
+        day_stock: daytime film stock, e.g. "Kodak Vision3 250D".
+        hex_palette: HEX palette locking color DNA, e.g. ["#1b2a3a", "#c8a15a"].
+        elements: recurring named people/props/locations to keep consistent.
+        night_stock: nighttime stock, e.g. "Cinestill 800T" (optional).
+        vibe: the soul layer — feeling/era/references (optional; plan_shots seeds it).
+        style_header: grade + lighting + camera DNA baked into every prompt (optional).
+        lens_map: focal+aperture per intent, e.g. {"face": "75mm f/1.4"} (optional).
         audio: audio rule (default: diegetic SFX, no music).
     """
+    if aspect not in prompts.ASPECT_RATIOS:
+        raise ValueError(
+            f"aspect {aspect!r} not supported by Soul. Use one of: "
+            + ", ".join(sorted(prompts.ASPECT_RATIOS))
+        )
     lock = {
         "project": project,
         "aspect": aspect,
-        "stock": stock,
+        "camera": camera,
+        "day_stock": day_stock,
+        "night_stock": night_stock,
         "hex_palette": hex_palette,
         "elements": elements,
+        "vibe": vibe,
+        "style_header": style_header,
+        "lens_map": lens_map or {},
         "audio": audio,
     }
     lock["lock_id"] = hashlib.sha1(repr(sorted(lock.items())).encode()).hexdigest()[:10]
@@ -179,9 +200,14 @@ def gen_still(project: str, shot_id: int) -> dict:
     Requires: `higgsfield auth login` + STUDIO_IMAGE_MODEL.
     """
     _, lock, shot = _load_shot(project, shot_id)
-    prompt = image_prompt(shot, lock)
-    result = render.generate(render.image_model(), prompt)
-    asset = {"shot_id": shot_id, "prompt": prompt, "urls": result["urls"]}
+    soul = state.load(project, "soul.json")
+    ref_id = (soul or {}).get("soul_id")
+    prompt = image_prompt(shot, lock, has_ref=bool(ref_id))
+    params = {"aspect_ratio": lock.get("aspect", "16:9"), "quality": "2k"}
+    if ref_id:
+        params["custom_reference_id"] = ref_id
+    result = render.generate(render.image_model(), prompt, params=params)
+    asset = {"shot_id": shot_id, "prompt": prompt, "params": params, "urls": result["urls"]}
     state.save(project, f"assets/still_{shot_id}.json", asset)
     return asset
 

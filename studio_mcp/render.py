@@ -84,15 +84,21 @@ def upload(path: str) -> str:
     return uid
 
 
-def generate(model: str, prompt: str, image: str | None = None) -> dict:
+def generate(
+    model: str, prompt: str, image: str | None = None, params: dict | None = None
+) -> dict:
     """Run an image or video generation job, blocking until done.
 
-    `image` may be a local path or an upload id (paths auto-upload). Returns
+    `image` may be a local path or an upload id (paths auto-upload). `params` are
+    extra model flags (e.g. {"aspect_ratio": "16:9", "quality": "2k"}). Returns
     {"urls": [...], "raw": <parsed json>}.
     """
     args = ["generate", "create", model, "--prompt", prompt, "--wait"]
     if image:
         args += ["--image", image]
+    for k, v in (params or {}).items():
+        if v is not None and v != "":
+            args += [f"--{k}", str(v)]
     out = _run(args)
     return {"urls": _urls(out), "raw": out}
 
