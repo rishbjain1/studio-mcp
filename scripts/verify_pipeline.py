@@ -3,7 +3,7 @@ plan_shots -> lock_campaign -> gen_still (real Higgsfield) -> qc_still (vision).
 import os
 
 os.environ["STUDIO_ROOT"] = os.path.expanduser("~/studio-projects")
-os.environ.setdefault("STUDIO_IMAGE_MODEL", "text2image_soul_v2")
+os.environ.setdefault("STUDIO_IMAGE_MODEL", "cinematic_studio_soul_location")
 
 from studio_mcp import server
 
@@ -22,7 +22,7 @@ plan = plan_shots(brief, project=P, n_shots=3)
 print("PLAN:", plan["title"], "·", len(plan["shots"]), "shots · vibe:", plan.get("vibe", ""))
 lk = lock(
     P,
-    aspect="16:9",  # Soul has no 2.39:1 — crop to scope in post
+    aspect="21:9",  # cinemascope — closest to 2.39:1
     camera="35mm film, soft handheld",
     day_stock="Kodak Vision3 250D",
     night_stock="Kodak Vision3 500T",

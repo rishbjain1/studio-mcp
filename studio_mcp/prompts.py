@@ -11,8 +11,13 @@ From the ai-content-pipeline method:
   purpose. End every prompt "no digital grading, untreated photographic look."
 """
 
-# Higgsfield Soul V2 supported aspect ratios (no 2.39:1 — use 16:9, crop in post).
-ASPECT_RATIOS = {"1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"}
+# Aspect ratios across Higgsfield image models. Cinematic Studio models add
+# 21:9 / 9:21 (cinemascope — closest to 2.39:1). The chosen model still validates
+# its own supported set at generate time. No true 2.39:1 — use 21:9, crop in post.
+ASPECT_RATIOS = {
+    "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3",
+    "5:4", "4:5", "21:9", "9:21",
+}
 
 PLAN_SYSTEM = """You are a cinematographer planning a shot list using the block method.
 Break the brief into distinct shots. Plan each shot FULLY before any generation.

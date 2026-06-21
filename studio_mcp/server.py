@@ -9,6 +9,8 @@ Run:  studio-mcp           (stdio)
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 
 from mcp.server.fastmcp import FastMCP
 
@@ -203,7 +205,12 @@ def gen_still(project: str, shot_id: int) -> dict:
     soul = state.load(project, "soul.json")
     ref_id = (soul or {}).get("soul_id")
     prompt = image_prompt(shot, lock, has_ref=bool(ref_id))
-    params = {"aspect_ratio": lock.get("aspect", "16:9"), "quality": "2k"}
+    # aspect_ratio is universal across image models; other params are model-
+    # specific, so opt in via STUDIO_IMAGE_PARAMS (JSON) rather than hardcode.
+    params = {"aspect_ratio": lock.get("aspect", "16:9")}
+    extra = os.environ.get("STUDIO_IMAGE_PARAMS")
+    if extra:
+        params.update(json.loads(extra))
     if ref_id:
         params["custom_reference_id"] = ref_id
     result = render.generate(render.image_model(), prompt, params=params)
