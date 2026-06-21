@@ -12,8 +12,15 @@ import hashlib
 
 from mcp.server.fastmcp import FastMCP
 
-from . import llm, state
-from .prompts import PLAN_SYSTEM, QC_SYSTEM, plan_user, qc_user
+from . import llm, render, state
+from .prompts import (
+    PLAN_SYSTEM,
+    QC_SYSTEM,
+    image_prompt,
+    motion_prompt,
+    plan_user,
+    qc_user,
+)
 
 mcp = FastMCP("studio-mcp")
 
@@ -146,6 +153,74 @@ def assemble(project: str, clips: list[dict] | None = None) -> dict:
     }
     state.save(project, "manifest.json", manifest)
     return manifest
+
+
+def _load_shot(project: str, shot_id: int) -> tuple[dict, dict, dict]:
+    """Load (plan, lock, shot) or raise a clear error."""
+    plan = state.load(project, "plan.json")
+    lock = state.load(project, "lock.json")
+    if plan is None:
+        raise ValueError(f"No plan for project {project!r}. Run plan_shots first.")
+    if lock is None:
+        raise ValueError(f"No lock for project {project!r}. Run lock_campaign first.")
+    shot = next((s for s in plan["shots"] if s["id"] == shot_id), None)
+    if shot is None:
+        raise ValueError(f"Shot {shot_id} not in plan for {project!r}.")
+    return plan, lock, shot
+
+
+@mcp.tool()
+def gen_still(project: str, shot_id: int) -> dict:
+    """Render a Soul-mode still for one shot, on-model to the campaign lock.
+
+    Builds the prompt from the shot + lock, runs the Higgsfield image model
+    (set STUDIO_IMAGE_MODEL), and returns the result URL(s). Run qc_still next.
+
+    Requires: `higgsfield auth login` + STUDIO_IMAGE_MODEL.
+    """
+    _, lock, shot = _load_shot(project, shot_id)
+    prompt = image_prompt(shot, lock)
+    result = render.generate(render.image_model(), prompt)
+    asset = {"shot_id": shot_id, "prompt": prompt, "urls": result["urls"]}
+    state.save(project, f"assets/still_{shot_id}.json", asset)
+    return asset
+
+
+@mcp.tool()
+def animate(project: str, shot_id: int, still: str) -> dict:
+    """Animate a QC-passed still into a clip (img2vid).
+
+    Args:
+        project: project name.
+        shot_id: which shot (for motion/duration).
+        still: local path or URL of the still to animate.
+
+    Requires: `higgsfield auth login` + STUDIO_VIDEO_MODEL.
+    """
+    _, _, shot = _load_shot(project, shot_id)
+    prompt = motion_prompt(shot)
+    result = render.generate(render.video_model(), prompt, image=still)
+    asset = {"shot_id": shot_id, "prompt": prompt, "still": still, "urls": result["urls"]}
+    state.save(project, f"assets/clip_{shot_id}.json", asset)
+    return asset
+
+
+@mcp.tool()
+def train_character(project: str, name: str, photos: list[str]) -> dict:
+    """Train a Soul character reference (self-clone) from 3-5 photos.
+
+    Uploads each photo, trains a Soul-2 reference, saves the soul_id to project
+    state. Use the soul_id in later gen_still runs for a face-consistent character.
+
+    Requires: `higgsfield auth login`.
+    """
+    if not 3 <= len(photos) <= 5:
+        raise ValueError("Provide 3-5 reference photos.")
+    image_ids = [render.upload(p) for p in photos]
+    result = render.train_soul(name, image_ids)
+    record = {"name": name, "soul_id": result["soul_id"], "photos": photos}
+    state.save(project, "soul.json", record)
+    return record
 
 
 @mcp.tool()

@@ -55,3 +55,23 @@ def qc_user(shot: dict, lock: dict, threshold: int) -> str:
         f"LOCKED CAMPAIGN LOOK:\n{lock}\n\n"
         "Score the attached still."
     )
+
+
+def image_prompt(shot: dict, lock: dict) -> str:
+    """Build a Soul-mode still prompt from a shot + the campaign lock."""
+    parts = [
+        f"{shot['action']}.",
+        f"{shot['type']} shot, {shot['camera_move']}.",
+        f"Film look: {lock['stock']}.",
+        f"Aspect {lock['aspect']}.",
+    ]
+    if lock.get("hex_palette"):
+        parts.append("Palette: " + ", ".join(lock["hex_palette"]) + ".")
+    if lock.get("elements"):
+        parts.append("Featuring: " + ", ".join(lock["elements"]) + ".")
+    return " ".join(parts)
+
+
+def motion_prompt(shot: dict) -> str:
+    """Build an img2vid motion prompt from a shot."""
+    return f"{shot['camera_move']} camera move. {shot['action']} Hold ~{shot['duration_s']}s."
