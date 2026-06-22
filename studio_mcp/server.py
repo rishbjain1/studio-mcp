@@ -193,11 +193,17 @@ def _load_shot(project: str, shot_id: int) -> tuple[dict, dict, dict]:
 
 
 @mcp.tool()
-def gen_still(project: str, shot_id: int) -> dict:
+def gen_still(project: str, shot_id: int, note: str = "") -> dict:
     """Render a Soul-mode still for one shot, on-model to the campaign lock.
 
     Builds the prompt from the shot + lock, runs the Higgsfield image model
     (set STUDIO_IMAGE_MODEL), and returns the result URL(s). Run qc_still next.
+
+    Args:
+        project: project name.
+        shot_id: which shot in plan.json.
+        note: director's note for a re-roll — pass a failed qc_still's
+            fix_suggestion here to correct the next render (closes the QC loop).
 
     Requires: `higgsfield auth login` + STUDIO_IMAGE_MODEL.
     """
@@ -205,6 +211,8 @@ def gen_still(project: str, shot_id: int) -> dict:
     soul = state.load(project, "soul.json")
     ref_id = (soul or {}).get("soul_id")
     prompt = image_prompt(shot, lock, has_ref=bool(ref_id))
+    if note:
+        prompt += f" DIRECTOR'S NOTE (correct these from the prior take): {note}"
     # aspect_ratio is universal across image models; other params are model-
     # specific, so opt in via STUDIO_IMAGE_PARAMS (JSON) rather than hardcode.
     params = {"aspect_ratio": lock.get("aspect", "16:9")}
@@ -214,7 +222,13 @@ def gen_still(project: str, shot_id: int) -> dict:
     if ref_id:
         params["custom_reference_id"] = ref_id
     result = render.generate(render.image_model(), prompt, params=params)
-    asset = {"shot_id": shot_id, "prompt": prompt, "params": params, "urls": result["urls"]}
+    asset = {
+        "shot_id": shot_id,
+        "prompt": prompt,
+        "note": note,
+        "params": params,
+        "urls": result["urls"],
+    }
     state.save(project, f"assets/still_{shot_id}.json", asset)
     return asset
 

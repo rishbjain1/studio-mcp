@@ -14,8 +14,22 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
+import urllib.request
 
 CLI = "higgsfield"
+
+
+def _local_path(media: str) -> str:
+    """The CLI's media flags take a UUID or local path, not a remote URL.
+    Download http(s) URLs to a temp file so the CLI can auto-upload them."""
+    if not media.startswith("http"):
+        return media
+    suffix = os.path.splitext(media.split("?")[0])[1] or ".png"
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    urllib.request.urlretrieve(media, path)
+    return path
 
 
 def _run(args: list[str]) -> dict:
@@ -95,7 +109,7 @@ def generate(
     """
     args = ["generate", "create", model, "--prompt", prompt, "--wait"]
     if image:
-        args += ["--image", image]
+        args += ["--image", _local_path(image)]
     for k, v in (params or {}).items():
         if v is not None and v != "":
             args += [f"--{k}", str(v)]
