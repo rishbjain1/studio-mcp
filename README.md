@@ -1,5 +1,7 @@
 # studio-mcp
 
+[![CI](https://github.com/rishbjain1/studio-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/rishbjain1/studio-mcp/actions/workflows/ci.yml)
+
 **The block-method film pipeline as agent-callable MCP tools.**
 
 An MCP server that lets an LLM agent drive a full `brief → shots → render → QC → cut`
@@ -7,6 +9,12 @@ workflow by calling tools — instead of clicking through generation UIs by hand
 Plan-then-generate, never reverse: every shot is planned (type, move, duration)
 before any pixel is made, and every still is QC'd against a locked look so the
 piece stays on-model.
+
+![MARÉA shot 1 — Higgsfield Soul Cinema, 21:9, QC-passed](docs/marea_shot1.png)
+
+> *Above: one shot from the brief "MARÉA — wordless coastal slow-burn" — planned,
+> rendered on Higgsfield Soul Cinema at 21:9, and passed by the style-drift QC
+> (intent 80 / look 84 / character 90). The agent re-rolls anything that fails.*
 
 ## Why
 
