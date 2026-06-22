@@ -147,19 +147,51 @@ def image_prompt(shot: dict, lock: dict, has_ref: bool = False) -> str:
     )
 
 
-def motion_prompt(shot: dict) -> str:
-    """Img2vid motion prompt — operator-as-human, timestamped, with AI-tell negatives.
+# --- Vision motion-director persona (reads the actual frame, decides the move) ---
+DP_SYSTEM = """You are a Director of Photography, film director, and creative director.
+Your job is to animate a still image cinematically.
+You read the scene — composition, subject, environment, mood, light — and decide the
+single most cinematic way to bring it to life through camera movement and motion.
+You think in shots, not effects. Every movement has a reason: a slow push on a face is
+tension; a handheld drift on a street is presence and energy; a static wide on a
+landscape is weight and atmosphere. Never move for the sake of moving.
 
-    For hero/dialogue shots use the seedance-prompt-structure skill instead.
-    """
+Defaults:
+- The camera always feels operated by a human, never automated.
+- Handheld with organic micro-movement unless the scene calls for otherwise.
+- No unmotivated zooms.
+- Motion serves the emotion of the image.
+- Every shot has a point of view."""
+
+
+def direct_motion_user(shot: dict) -> str:
+    return (
+        "Read the attached frame — composition, subject, light, mood, point of view. "
+        f"Shot intent: {shot['action'].rstrip('. ')} "
+        f"(planned as {shot['type']}, {shot['camera_move']}, ~{shot['duration_s']}s). "
+        "Decide the single most cinematic camera movement to bring THIS frame to life. "
+        "Give a tight motion direction (2-4 sentences): the move, its motivation "
+        "(what emotion/POV it serves), and how a human operator executes it — hands, "
+        "weight, reaction timing. Do not describe effects; describe an operated camera."
+    )
+
+
+def motion_tech(shot: dict) -> str:
+    """The technical layer appended under any motion direction — keeps it rendering clean."""
     return (
         f"Single uninterrupted take, ~{shot['duration_s']}s. "
-        f"Camera: {shot['camera_move']} — describe the operator's hands, slight "
-        f"breathing and reframe wobble, no stabilization, no gimbal. "
-        f"Action: {shot['action'].rstrip('. ')}. "
-        f"Hold: {shot.get('hold', 'settle on the subject')}. "
         "Allow micro-life (blinks, breath, gaze shifts); lock identity. "
         "Negative: smooth/mechanical zoom, gimbal-stabilized, locked tripod, "
         "plastic skin, warped face, extra fingers, subject moving when only the "
         "camera should, clean/static ending."
+    )
+
+
+def motion_prompt(shot: dict) -> str:
+    """Template motion prompt (fallback when not directing from the frame)."""
+    return (
+        f"Camera: {shot['camera_move']} — the operator's hands, slight breathing and "
+        f"reframe wobble, no stabilization, no gimbal. "
+        f"Action: {shot['action'].rstrip('. ')}. "
+        f"Hold: {shot.get('hold', 'settle on the subject')}. " + motion_tech(shot)
     )

@@ -239,25 +239,40 @@ def gen_still(project: str, shot_id: int, note: str = "", model: str = "") -> di
 
 
 @mcp.tool()
-def animate(project: str, shot_id: int, still: str, model: str = "") -> dict:
+def animate(
+    project: str, shot_id: int, still: str, model: str = "", direct: bool = True
+) -> dict:
     """Animate a QC-passed still into a clip (img2vid).
+
+    When direct=True, a DP/director persona reads the actual frame (vision) and
+    decides the cinematic camera move from what's in it — motion serves the
+    image's emotion + POV — then the technical layer (operator-as-human,
+    negatives) is appended. direct=False uses the faster template (no vision call).
 
     Args:
         project: project name.
         shot_id: which shot (for motion/duration).
         still: local path or URL of the still to animate.
         model: video model job_set_type (e.g. "kling3_0_turbo" daily,
-            "seedance_2_0" hero). Defaults to STUDIO_VIDEO_MODEL. Use
-            list_models("video") to see options.
+            "seedance_2_0" hero). Defaults to STUDIO_VIDEO_MODEL.
+        direct: read the frame and direct the move (True, hero) vs template (False, bulk).
 
     Requires: `higgsfield auth login` + a model (param or STUDIO_VIDEO_MODEL).
     """
     _, _, shot = _load_shot(project, shot_id)
-    prompt = motion_prompt(shot)
+    if direct:
+        decision = llm.vision(
+            still, prompts.DP_SYSTEM + "\n\n" + prompts.direct_motion_user(shot)
+        ).strip()
+        prompt = f"{decision} {prompts.motion_tech(shot)}"
+    else:
+        decision = ""
+        prompt = motion_prompt(shot)
     use_model = model or render.video_model()
     result = render.generate(use_model, prompt, image=still)
-    asset = {"shot_id": shot_id, "model": use_model, "prompt": prompt,
-             "still": still, "urls": result["urls"]}
+    asset = {"shot_id": shot_id, "model": use_model, "directed": bool(direct),
+             "motion_direction": decision, "prompt": prompt, "still": still,
+             "urls": result["urls"]}
     state.save(project, f"assets/clip_{shot_id}.json", asset)
     return asset
 
