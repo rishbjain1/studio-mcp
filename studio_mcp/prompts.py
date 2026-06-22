@@ -187,6 +187,67 @@ def motion_tech(shot: dict) -> str:
     )
 
 
+# --- Reference-breakdown: build a prompt FROM a reference image ---
+REF_BREAKDOWN_SYSTEM = """You break a reference image down into its ingredients so a
+new image can be built in the same world — references are for understanding, not
+copying. Read the attached image in extreme detail and extract: vibe (feeling/era/
+references), lighting (direction, quality, time, sources), camera (shot type, lens
+mm, aperture, depth of field, angle), and film/finish (stock, grain, halation,
+color science). Then output a single ready-to-use prompt in the 6-layer form:
+VIBE / SUBJECT / LIGHTING / CAMERA / FILM / TOOL NOTES, ending "no digital grading,
+untreated photographic look". Be specific enough that the prompt could only describe
+this look — no vague filler."""
+
+
+def ref_breakdown_user(swap_subject: str) -> str:
+    if swap_subject:
+        return (
+            f"Keep the lighting, camera, finish, and vibe of the attached image, but "
+            f"SWAP THE SUBJECT to: {swap_subject}. Everything else stays locked."
+        )
+    return "Break down the attached image and output the 6-layer prompt for its look."
+
+
+# --- HEX-from-image: extract a palette ---
+PALETTE_SYSTEM = """You are a colorist. Read the attached image and extract its color
+DNA as HEX codes. Return ONLY a JSON object:
+{"dominant": "#......", "secondary": "#......", "accent": "#......",
+ "hex_palette": ["#......", "#......", "#......"]}"""
+
+
+# --- Seedance hero path: timecoded beats, lip-sync, liveness (per seedance-prompt-structure) ---
+SEEDANCE_PREFIX = """Style: 8K cinematic. Photorealistic — no 3D render, no game engine.
+Cinematography: naturalistic master cinematography. Lighting: natural light only —
+contre-jour backlight, camera on shadow side, atmospheric haze. Color: 60:30:10
+dominant/secondary/accent. Camera: physical cine lens, 180° shutter motion blur.
+Skin: pore-level realism — vellus hair, capillary flush. Acting: top-tier — micro-pauses
+before reactions, precise eye-line, wet living eyes with catch-lights, visible breath and
+chest rise. Physics: gravity and inertia respected. Composition: rule of thirds + golden
+ratio, every person moving from frame one. Continuity: identical across cuts, no identity
+drift. Technical: 24fps, 8K, no jitter. Audio: environmental SFX only, no music, no subtitles."""
+
+
+def seedance_hero_user(shot: dict, lock: dict) -> str:
+    return (
+        "Read the attached frame and write ONE Seedance hero video prompt for this "
+        f"~{shot['duration_s']}s shot, using EXACTLY this structure and starting with the "
+        "full style prefix verbatim:\n\n"
+        f"{SEEDANCE_PREFIX}\n\n"
+        "SUBJECT — who's in frame (each recurring element 'matches input 100%'), the goal + "
+        "emotional beat. MULTISHOT.\n"
+        "LOCATION — style reference only, not a fixed keyframe; subject moves through space.\n"
+        "ACTION — one line of intent, then split the duration into timecoded SHOT 1/2/3 "
+        "(0:00–0:0X …), each a beat, hard cut.\n"
+        "CAMERA — per shot: angle, height, lens feel, movement, motivation (human-operated).\n"
+        "STYLE — Dominant 60% / Secondary 30% / Accent 10% for this shot.\n"
+        "CONSTRAINTS — 16:9; lip-sync any dialogue; force EVERY character alive (negative: "
+        "non-speaker frozen/statue/passive); no eye glow; no slow-mo unless ramped.\n\n"
+        f"Shot intent: {shot['action'].rstrip('. ')}. "
+        f"Lock look: {lock.get('day_stock') or lock.get('stock', '')}, "
+        f"palette {lock.get('hex_palette', [])}. Output ONLY the prompt."
+    )
+
+
 def motion_prompt(shot: dict) -> str:
     """Template motion prompt (fallback when not directing from the frame)."""
     return (

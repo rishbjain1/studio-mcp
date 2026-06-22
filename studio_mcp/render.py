@@ -139,6 +139,42 @@ def video_model() -> str:
     return _model("STUDIO_VIDEO_MODEL", "img2vid")
 
 
+def upscale(model: str, media: str, is_video: bool = False) -> dict:
+    """Upscale an image or video via a Higgsfield upscale model."""
+    flag = "--video" if is_video else "--image"
+    args = ["generate", "create", model, "--wait", flag, _local_path(media)]
+    out = _run(args)
+    return {"urls": _urls(out), "raw": out}
+
+
+def concat_clips(clip_urls: list[str], out_path: str) -> str:
+    """Download clips and concatenate them into one mp4 with ffmpeg (hard cuts)."""
+    if not clip_urls:
+        raise ValueError("No clips to concatenate.")
+    tmp = tempfile.mkdtemp(prefix="studio-cut-")
+    local = []
+    for i, u in enumerate(clip_urls):
+        p = os.path.join(tmp, f"clip_{i:03d}.mp4")
+        urllib.request.urlretrieve(u, p)
+        local.append(p)
+    listfile = os.path.join(tmp, "concat.txt")
+    with open(listfile, "w") as f:
+        for p in local:
+            f.write(f"file '{p}'\n")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    # Try stream-copy concat first (fast); fall back to re-encode if codecs differ.
+    base = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listfile]
+    copy = subprocess.run(base + ["-c", "copy", out_path], capture_output=True, text=True)
+    if copy.returncode != 0:
+        reenc = subprocess.run(
+            base + ["-c:v", "libx264", "-pix_fmt", "yuv420p", out_path],
+            capture_output=True, text=True,
+        )
+        if reenc.returncode != 0:
+            raise RuntimeError(f"ffmpeg concat failed: {reenc.stderr[:400]}")
+    return out_path
+
+
 def image_model_or_none() -> str | None:
     return os.environ.get("STUDIO_IMAGE_MODEL") or None
 

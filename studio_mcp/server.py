@@ -240,37 +240,51 @@ def gen_still(project: str, shot_id: int, note: str = "", model: str = "") -> di
 
 @mcp.tool()
 def animate(
-    project: str, shot_id: int, still: str, model: str = "", direct: bool = True
+    project: str, shot_id: int, still: str,
+    model: str = "", direct: bool = True, hero: bool = False,
 ) -> dict:
     """Animate a QC-passed still into a clip (img2vid).
 
-    When direct=True, a DP/director persona reads the actual frame (vision) and
-    decides the cinematic camera move from what's in it — motion serves the
-    image's emotion + POV — then the technical layer (operator-as-human,
-    negatives) is appended. direct=False uses the faster template (no vision call).
+    Three modes:
+    - hero=True: the full Seedance hero path — vision reads the frame and writes a
+      timecoded, lip-sync-aware Seedance prompt (style prefix + SHOT beats +
+      liveness negatives); defaults to the seedance_2_0 model. For dialogue /
+      one-take / must-be-perfect shots.
+    - direct=True (default): a DP persona reads the frame and decides the cinematic
+      move; technical operator-as-human layer appended. Daily driver.
+    - both False: the fast template (no vision call). Bulk.
 
     Args:
         project: project name.
         shot_id: which shot (for motion/duration).
         still: local path or URL of the still to animate.
-        model: video model job_set_type (e.g. "kling3_0_turbo" daily,
-            "seedance_2_0" hero). Defaults to STUDIO_VIDEO_MODEL.
-        direct: read the frame and direct the move (True, hero) vs template (False, bulk).
+        model: video model job_set_type. Defaults: hero→seedance_2_0, else
+            STUDIO_VIDEO_MODEL (e.g. kling3_0_turbo).
+        direct: DP vision direction (ignored if hero=True).
+        hero: Seedance hero path (timecoded beats, lip-sync).
 
-    Requires: `higgsfield auth login` + a model (param or STUDIO_VIDEO_MODEL).
+    Requires: `higgsfield auth login` + a model.
     """
-    _, _, shot = _load_shot(project, shot_id)
-    if direct:
+    _, lock, shot = _load_shot(project, shot_id)
+    if hero:
+        decision = llm.vision(
+            still, prompts.DP_SYSTEM + "\n\n" + prompts.seedance_hero_user(shot, lock)
+        ).strip()
+        prompt = decision
+        use_model = model or render.video_model_or_none() or "seedance_2_0"
+    elif direct:
         decision = llm.vision(
             still, prompts.DP_SYSTEM + "\n\n" + prompts.direct_motion_user(shot)
         ).strip()
         prompt = f"{decision} {prompts.motion_tech(shot)}"
+        use_model = model or render.video_model()
     else:
         decision = ""
         prompt = motion_prompt(shot)
-    use_model = model or render.video_model()
+        use_model = model or render.video_model()
     result = render.generate(use_model, prompt, image=still)
-    asset = {"shot_id": shot_id, "model": use_model, "directed": bool(direct),
+    asset = {"shot_id": shot_id, "model": use_model,
+             "mode": "hero" if hero else ("directed" if direct else "template"),
              "motion_direction": decision, "prompt": prompt, "still": still,
              "urls": result["urls"]}
     state.save(project, f"assets/clip_{shot_id}.json", asset)
@@ -311,6 +325,78 @@ def project_status(project: str) -> dict:
         "qc_done": sorted(int(p.stem) for p in qc_dir.glob("*.json")) if qc_dir.exists() else [],
         "has_manifest": manifest is not None,
     }
+
+
+@mcp.tool()
+def reference_prompt(reference: str, swap_subject: str = "") -> dict:
+    """Break a reference image into a ready-to-use 6-layer prompt.
+
+    References are for understanding, not copying: a vision model extracts the
+    vibe/lighting/camera/finish and outputs a prompt that recreates the *look*.
+    Optionally swap the subject while keeping the look locked.
+
+    Args:
+        reference: local path or URL of the reference image.
+        swap_subject: if set, keep the look but swap to this subject
+            (e.g. "a woman in a grey wool coat on a dusk shore").
+    """
+    instruction = prompts.REF_BREAKDOWN_SYSTEM + "\n\n" + prompts.ref_breakdown_user(swap_subject)
+    text = llm.vision(reference, instruction).strip()
+    return {"reference": reference, "swap_subject": swap_subject, "prompt": text}
+
+
+@mcp.tool()
+def palette_from_image(image: str) -> dict:
+    """Extract a HEX palette (dominant/secondary/accent) from a reference image.
+
+    Feed the returned hex_palette into lock_campaign to lock a film's color DNA
+    from a moodboard or still.
+    """
+    return llm.vision_json(image, prompts.PALETTE_SYSTEM)
+
+
+@mcp.tool()
+def cut(project: str) -> dict:
+    """Concatenate the project's rendered clips into one mp4 (hard cuts, in plan order).
+
+    Reads the shot order from plan.json, pulls each animated clip (assets/clip_N.json),
+    and ffmpeg-concats them into <project>_cut.mp4. Local + free (no credits). Run
+    after animating the shots. Music is added in post (clips are SFX-only by rule).
+    """
+    plan = state.load(project, "plan.json")
+    if plan is None:
+        raise ValueError(f"No plan for project {project!r}.")
+    urls = []
+    for s in plan["shots"]:
+        clip = state.load(project, f"assets/clip_{s['id']}.json")
+        if clip and clip.get("urls"):
+            urls.append(clip["urls"][0])
+    if not urls:
+        raise ValueError("No rendered clips found. Run animate on the shots first.")
+    out = str(state.project_dir(project) / f"{project}_cut.mp4")
+    render.concat_clips(urls, out)
+    return {"project": project, "clips": len(urls), "cut": out}
+
+
+@mcp.tool()
+def upscale(media: str, kind: str = "image", model: str = "") -> dict:
+    """Final-polish upscale of an image or video via Higgsfield.
+
+    Args:
+        media: local path or URL of the image/video to upscale.
+        kind: "image" or "video".
+        model: upscale model (defaults: image=bytedance_image_upscale,
+            video=topaz_video). Use list_models to see options.
+
+    Requires: `higgsfield auth login`. Costs credits.
+    """
+    is_video = kind == "video"
+    use_model = model or (
+        os.environ.get("STUDIO_UPSCALE_VIDEO_MODEL", "topaz_video") if is_video
+        else os.environ.get("STUDIO_UPSCALE_IMAGE_MODEL", "bytedance_image_upscale")
+    )
+    result = render.upscale(use_model, media, is_video=is_video)
+    return {"media": media, "kind": kind, "model": use_model, "urls": result["urls"]}
 
 
 @mcp.tool()
