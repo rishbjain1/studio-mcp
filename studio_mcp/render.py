@@ -137,3 +137,31 @@ def image_model() -> str:
 
 def video_model() -> str:
     return _model("STUDIO_VIDEO_MODEL", "img2vid")
+
+
+def image_model_or_none() -> str | None:
+    return os.environ.get("STUDIO_IMAGE_MODEL") or None
+
+
+def video_model_or_none() -> str | None:
+    return os.environ.get("STUDIO_VIDEO_MODEL") or None
+
+
+def list_models(kind: str) -> list[dict]:
+    """List available Higgsfield models. kind = "image" or "video"."""
+    flag = "--image" if kind == "image" else "--video"
+    out = _run(["model", "list", flag])
+    rows = out if isinstance(out, list) else out.get("models") or out.get("data") or []
+    models = []
+    for r in rows:
+        if isinstance(r, dict):
+            jst = r.get("job_set_type") or r.get("id") or r.get("type")
+            name = r.get("name") or r.get("display_name") or jst
+            if jst:
+                models.append({"job_set_type": jst, "name": name})
+    return models
+
+
+def model_params(job_set_type: str) -> dict:
+    """Inspect a model's accepted params (aspect_ratio options, etc.)."""
+    return _run(["model", "get", job_set_type])

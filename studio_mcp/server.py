@@ -193,19 +193,22 @@ def _load_shot(project: str, shot_id: int) -> tuple[dict, dict, dict]:
 
 
 @mcp.tool()
-def gen_still(project: str, shot_id: int, note: str = "") -> dict:
+def gen_still(project: str, shot_id: int, note: str = "", model: str = "") -> dict:
     """Render a Soul-mode still for one shot, on-model to the campaign lock.
 
-    Builds the prompt from the shot + lock, runs the Higgsfield image model
-    (set STUDIO_IMAGE_MODEL), and returns the result URL(s). Run qc_still next.
+    Builds the prompt from the shot + lock, runs a Higgsfield image model, and
+    returns the result URL(s). Run qc_still next.
 
     Args:
         project: project name.
         shot_id: which shot in plan.json.
         note: director's note for a re-roll — pass a failed qc_still's
             fix_suggestion here to correct the next render (closes the QC loop).
+        model: image model job_set_type to use (e.g. "soul_cinematic",
+            "text2image_soul_v2"). Defaults to STUDIO_IMAGE_MODEL. Use
+            list_models("image") to see options.
 
-    Requires: `higgsfield auth login` + STUDIO_IMAGE_MODEL.
+    Requires: `higgsfield auth login` + a model (param or STUDIO_IMAGE_MODEL).
     """
     _, lock, shot = _load_shot(project, shot_id)
     soul = state.load(project, "soul.json")
@@ -221,9 +224,11 @@ def gen_still(project: str, shot_id: int, note: str = "") -> dict:
         params.update(json.loads(extra))
     if ref_id:
         params["custom_reference_id"] = ref_id
-    result = render.generate(render.image_model(), prompt, params=params)
+    use_model = model or render.image_model()
+    result = render.generate(use_model, prompt, params=params)
     asset = {
         "shot_id": shot_id,
+        "model": use_model,
         "prompt": prompt,
         "note": note,
         "params": params,
@@ -234,20 +239,25 @@ def gen_still(project: str, shot_id: int, note: str = "") -> dict:
 
 
 @mcp.tool()
-def animate(project: str, shot_id: int, still: str) -> dict:
+def animate(project: str, shot_id: int, still: str, model: str = "") -> dict:
     """Animate a QC-passed still into a clip (img2vid).
 
     Args:
         project: project name.
         shot_id: which shot (for motion/duration).
         still: local path or URL of the still to animate.
+        model: video model job_set_type (e.g. "kling3_0_turbo" daily,
+            "seedance_2_0" hero). Defaults to STUDIO_VIDEO_MODEL. Use
+            list_models("video") to see options.
 
-    Requires: `higgsfield auth login` + STUDIO_VIDEO_MODEL.
+    Requires: `higgsfield auth login` + a model (param or STUDIO_VIDEO_MODEL).
     """
     _, _, shot = _load_shot(project, shot_id)
     prompt = motion_prompt(shot)
-    result = render.generate(render.video_model(), prompt, image=still)
-    asset = {"shot_id": shot_id, "prompt": prompt, "still": still, "urls": result["urls"]}
+    use_model = model or render.video_model()
+    result = render.generate(use_model, prompt, image=still)
+    asset = {"shot_id": shot_id, "model": use_model, "prompt": prompt,
+             "still": still, "urls": result["urls"]}
     state.save(project, f"assets/clip_{shot_id}.json", asset)
     return asset
 
@@ -285,6 +295,29 @@ def project_status(project: str) -> dict:
         "has_lock": lock is not None,
         "qc_done": sorted(int(p.stem) for p in qc_dir.glob("*.json")) if qc_dir.exists() else [],
         "has_manifest": manifest is not None,
+    }
+
+
+@mcp.tool()
+def list_models(kind: str = "image") -> dict:
+    """List available Higgsfield models so you can pick one for gen_still/animate.
+
+    Args:
+        kind: "image" (for gen_still) or "video" (for animate).
+
+    Returns the model job_set_types + names. Playbook routing: stills →
+    "soul_cinematic" (Soul Cinema) or "text2image_soul_v2" (Soul V2); video →
+    "kling3_0_turbo"/"kling3_0" (daily driver ~85%) or "seedance_2_0" (hero,
+    zero morph, lip-sync). Pass the chosen job_set_type as the `model` arg.
+
+    Requires: `higgsfield auth login`.
+    """
+    models = render.list_models("video" if kind == "video" else "image")
+    return {
+        "kind": kind,
+        "current_default": (render.video_model_or_none() if kind == "video"
+                            else render.image_model_or_none()),
+        "models": models,
     }
 
 
