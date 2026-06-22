@@ -22,18 +22,32 @@ Single-tool MCP servers (one model, one call) are common. This is the layer abov
 it **orchestrates** across your generation stack with a block-method planner and a
 style-drift QC gate — the part nobody ships.
 
-## Tools (v1)
+## Tools (13)
 
+**Plan & lock**
 | Tool | What it does |
 |------|--------------|
-| `plan_shots(brief, project, n_shots)` | brief → structured shot plan (type · camera move · duration · action) |
-| `lock_campaign(project, aspect, stock, hex_palette, elements, audio)` | lock the look so every shot stays on-model |
-| `qc_still(project, image, shot_id, threshold)` | vision **style-drift QC** — scores a still vs shot intent + locked look, pass/fail + fix |
-| `assemble(project, clips)` | cut manifest — shot order, durations, audio/lip-sync notes |
-| `project_status(project)` | what stages exist for a project |
+| `plan_shots(brief, project, n_shots)` | brief → block-method shot plan (type · move · duration · lighting · lens · time · hold · vibe) |
+| `lock_campaign(project, aspect, camera, day_stock, hex_palette, elements, …)` | lock the look once — every shot's prompt inherits it |
+| `palette_from_image(image)` | extract a HEX palette (dominant/secondary/accent) from a moodboard/still |
+| `reference_prompt(reference, swap_subject)` | break a reference image into a ready 6-layer prompt (build *from* a ref) |
 
-**v1.1 (render phase, via [Higgsfield CLI](https://higgsfield.ai/cli)):**
-`train_character` (soul-id self-clone) · `gen_still` (Soul) · `animate` (Seedance/Kling).
+**Render & QC** *(via [Higgsfield CLI](https://higgsfield.ai/cli))*
+| Tool | What it does |
+|------|--------------|
+| `gen_still(project, shot_id, note, model)` | 6-layer Soul prompt → render; `note` re-rolls with a QC fix; per-shot `model` |
+| `qc_still(project, image, shot_id, threshold)` | vision **style-drift QC** vs shot intent + lock; pass/fail + fix_suggestion |
+| `animate(project, shot_id, still, model, direct, hero)` | img2vid — `direct` = DP persona reads the frame & directs the move; `hero` = full Seedance timecoded/lip-sync prompt |
+| `train_character(project, name, photos)` | soul-id self-clone from 3–5 photos |
+| `upscale(media, kind, model)` | final-polish image/video upscale |
+
+**Assemble & utility**
+| Tool | What it does |
+|------|--------------|
+| `cut(project)` | ffmpeg-concat the rendered clips into one `<project>_cut.mp4` (offline, free) |
+| `assemble(project, clips)` | cut manifest — order, durations, diegetic-audio notes |
+| `list_models(kind)` | list available image/video models so an agent can route per shot |
+| `project_status(project)` | what stages exist for a project |
 
 ## Provider-agnostic
 
