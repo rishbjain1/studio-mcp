@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 
+import httpx
 from mcp.server.fastmcp import FastMCP
 
 from . import llm, prompts, render, state
@@ -397,6 +398,33 @@ def upscale(media: str, kind: str = "image", model: str = "") -> dict:
     )
     result = render.upscale(use_model, media, is_video=is_video)
     return {"media": media, "kind": kind, "model": use_model, "urls": result["urls"]}
+
+
+@mcp.tool()
+def craft_lookup(question: str, top_k: int = 4) -> dict:
+    """Query the creative-rag craft knowledge base for grounded, cited guidance.
+
+    Pulls from your documented craft corpus (stocks, lenses, lighting, prompt
+    structure) with citations + a verification verdict — use it while planning or
+    locking a shot so prompts are grounded in your real library, not generic
+    knowledge. Returns {answer, sources, verification}.
+
+    Requires creative-rag running. Set CRAG_URL (default http://127.0.0.1:8000)
+    and CRAG_API_KEY if the service is auth-gated.
+    """
+    base = os.environ.get("CRAG_URL", "http://127.0.0.1:8000").rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    if os.environ.get("CRAG_API_KEY"):
+        headers["X-API-Key"] = os.environ["CRAG_API_KEY"]
+    resp = httpx.post(
+        f"{base}/query",
+        headers=headers,
+        json={"query": question, "top_k": top_k},
+        timeout=120,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f"creative-rag {resp.status_code}: {resp.text[:300]}")
+    return resp.json()
 
 
 @mcp.tool()
