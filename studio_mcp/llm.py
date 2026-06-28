@@ -21,8 +21,11 @@ import json
 import mimetypes
 import os
 import re
+import time
 
 import httpx
+
+from . import obs
 
 DEFAULT_BASE_URL = "https://api.anthropic.com/v1"
 DEFAULT_MODEL = "claude-opus-4-8"
@@ -52,6 +55,7 @@ DEFAULT_MAX_TOKENS = 4096
 
 def _post(messages: list[dict], model: str) -> str:
     cfg = _cfg()
+    t0 = time.perf_counter()
     resp = httpx.post(
         f"{cfg['base_url']}/chat/completions",
         headers={
@@ -65,9 +69,13 @@ def _post(messages: list[dict], model: str) -> str:
         },
         timeout=180,
     )
+    latency_ms = round((time.perf_counter() - t0) * 1000, 1)
     if resp.status_code >= 400:
         raise RuntimeError(f"LLM {resp.status_code}: {resp.text[:600]}")
-    return resp.json()["choices"][0]["message"]["content"]
+    body = resp.json()
+    usage = body.get("usage") or {}
+    obs.trace_call(model, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0), latency_ms)
+    return body["choices"][0]["message"]["content"]
 
 
 def chat(messages: list[dict], model: str | None = None) -> str:
