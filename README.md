@@ -22,7 +22,7 @@ Single-tool MCP servers (one model, one call) are common. This is the layer abov
 it **orchestrates** across your generation stack with a block-method planner and a
 style-drift QC gate — the part nobody ships.
 
-## Tools (13)
+## Tools (14)
 
 **Plan & lock**
 | Tool | What it does |
@@ -48,6 +48,25 @@ style-drift QC gate — the part nobody ships.
 | `assemble(project, clips)` | cut manifest — order, durations, diegetic-audio notes |
 | `list_models(kind)` | list available image/video models so an agent can route per shot |
 | `project_status(project)` | what stages exist for a project |
+
+**Ground** *(via [creative-rag](https://github.com/rishbjain1/creative-rag))*
+| Tool | What it does |
+|------|--------------|
+| `craft_lookup(question, top_k)` | query the craft knowledge base for a **grounded, cited, verified** answer (stocks/lenses/lighting/prompt structure) — use while planning/locking so prompts trace to the real library, not generic guesses. Needs creative-rag running (`CRAG_URL`, default `http://127.0.0.1:8000`). |
+
+## Integration — the studio trio
+
+studio-mcp is one of three interlocking pieces; see [INTEGRATION.md](INTEGRATION.md).
+
+- **`ai-content-pipeline` skill** — the *method* (block plan → lock → stills → animate → cut). It maps each stage to the studio-mcp tool that executes it and calls `craft_lookup` to ground prompts.
+- **studio-mcp** (this repo) — the *tools* that execute the method.
+- **[creative-rag](https://github.com/rishbjain1/creative-rag)** — the *cited craft KB* behind `craft_lookup`.
+
+Smoke-test the full chain (skill method → `craft_lookup` → creative-rag):
+
+```bash
+python scripts/smoke_chain.py        # needs creative-rag on :8000
+```
 
 ## Provider-agnostic
 
