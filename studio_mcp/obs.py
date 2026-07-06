@@ -28,11 +28,15 @@ def cost_usd(model: str, in_tok: int, out_tok: int) -> float:
 
 def trace_call(model: str, in_tok: int, out_tok: int, latency_ms: float) -> None:
     """Emit one structured trace line for an LLM call."""
+    cost = cost_usd(model, in_tok, out_tok)
     print(json.dumps({
         "event": "llm_call",
         "model": model,
         "input_tokens": in_tok,
         "output_tokens": out_tok,
-        "cost_usd": cost_usd(model, in_tok, out_tok),
+        "cost_usd": cost,
         "latency_ms": latency_ms,
     }), file=sys.stderr, flush=True)
+    # Forward to Langfuse when configured (no-op otherwise).
+    from . import lf
+    lf.log_generation(model, in_tok, out_tok, cost, latency_ms)

@@ -8,3 +8,4 @@ studio-projects/
 dist/
 build/
 .DS_Store
+eval/out/

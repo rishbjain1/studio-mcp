@@ -12,6 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+eval = ["langfuse>=4"]
 
 [project.scripts]
 studio-mcp = "studio_mcp.server:main"

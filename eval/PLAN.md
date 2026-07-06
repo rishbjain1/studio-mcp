@@ -23,13 +23,13 @@ Define a fixed task set and score each run on:
 
 ## Checklist
 
-- [ ] Add Langfuse SDK + span wrappers around tool/LLM calls
-- [ ] Define benchmark task set (fixture briefs + expected constraints)
-- [ ] Scorers: latency, QC-pass, citation-pass, constraint-match, completion
-- [ ] `eval/run_benchmark.py` — run the set, emit a scorecard
+- [x] Langfuse SDK + span wrappers (`studio_mcp/lf.py`; keys-gated no-op; obs forwards every LLM call as a generation)
+- [x] Benchmark task set (`eval/tasks.json` — 2 real briefs + 1 constraint-violating control)
+- [x] Scorers: latency, QC-pass, constraint-match, completion (`eval/scorers.py`; citation-pass pending craft_lookup fixtures)
+- [x] `eval/run_benchmark.py` — offline (deterministic, free) by default; --live guarded by STUDIO_LIVE=1
 - [ ] Wire scorecard into CI as a non-blocking report first, then a gate
 
 ## Status
 
-🚧 In progress — tracing scaffolding. Builds on the per-call cost/latency obs
-already on `main`.
+✅ Tracing + offline benchmark shipped (22/22 tests). Langfuse activates the
+moment LANGFUSE_PUBLIC_KEY/SECRET_KEY exist — no code change needed.
