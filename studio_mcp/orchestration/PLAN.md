@@ -1,7 +1,9 @@
 # Multi-agent orchestration plan
 
 Refactor the linear studio-mcp pipeline (plan → gen → qc → animate → cut → assemble)
-into an explicit multi-agent graph coordinated by the Anthropic Agent SDK.
+into an explicit multi-agent graph with shared trace context and human gates.
+Coordination is native Python (thin-first, same idiom as the raw-httpx `llm.py`);
+adopting the Anthropic Agent SDK for LLM-driven planning is a tracked follow-up.
 
 ## Why
 
@@ -16,16 +18,21 @@ Today the pipeline is a fixed sequence of tool calls. Making it an agent graph g
 - `GenerationAgent` — drives `gen_still` / `animate`, retries on QC failure.
 - `QCAgent` — runs `qc_still`, decides pass/regenerate, escalates to human on repeated drift.
 - `AssemblyAgent` — `cut` + `assemble`.
-- Orchestrator — Anthropic Agent SDK, shared trace context, guardrails between stages.
+- Orchestrator — runs the graph, shared trace context, guardrails between stages.
 
 ## Checklist
 
-- [ ] Define agent interfaces + shared trace/context object
-- [ ] Wrap existing MCP tools as agent-callable actions
-- [ ] Planner → Generation → QC loop with retry + human gate
-- [ ] Emit a structured trace per run (ties into the Langfuse work on `feat/langfuse-eval`)
-- [ ] End-to-end run on the MARÉA project as the smoke test
+- [x] Define agent interfaces + shared trace/context object
+- [x] Wrap existing MCP tools as agent-callable actions
+- [x] Planner → Generation → QC loop with retry + human gate
+- [x] Emit a structured trace per run (ties into the Langfuse work on `feat/langfuse-eval`)
+- [x] Offline end-to-end smoke test of the full graph (llm/render stubbed — see
+      `tests/test_orchestration.py`: all-pass, retry-with-fix-suggestion, gate-halt,
+      gate-override paths)
+- [ ] Live end-to-end run on the MARÉA project (spends render + LLM credits — needs go-ahead)
+- [ ] Swap PlannerAgent's decision layer onto the Anthropic Agent SDK
 
 ## Status
 
-🚧 In progress — interface design.
+✅ Graph implemented + offline smoke tests green (19/19 suite).
+Run it:  `python -m studio_mcp.orchestration --project marea --brief "..." [--yes]`
