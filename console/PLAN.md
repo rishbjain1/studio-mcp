@@ -8,7 +8,7 @@
 - [x] Schema-driven invoke form (json-schema → form fields)
 - [x] Result panel — output + latency + cost (reuse the per-call tracing already in `studio_mcp/llm.py`)
 - [x] Run history (local persistence first, then optional server store)
-- [ ] Live output streaming for long tools (gen_still / animate / assemble)
+- [x] Live status streaming for long tools (NDJSON heartbeats + final result; per-frame render progress blocked by Higgsfield CLI --wait)
 - [ ] Deploy (Vercel) + link from repo README
 
 ## Notes

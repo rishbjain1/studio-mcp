@@ -21,6 +21,7 @@ export default function ConsolePage() {
   const [connectError, setConnectError] = useState<string>();
   const [selected, setSelected] = useState<McpTool>();
   const [running, setRunning] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [result, setResult] = useState<RunResult>();
   const [history, setHistory] = useState<RunRecord[]>([]);
 
@@ -54,22 +55,52 @@ export default function ConsolePage() {
     async (args: Record<string, unknown>) => {
       if (!selected) return;
       setRunning(true);
+      setElapsedMs(0);
       setResult(undefined);
       try {
+        // Streaming call: NDJSON status heartbeats while long tools
+        // (gen_still / animate / assemble) run, then the final result line.
         const res = await fetch("/api/mcp", {
           method: "POST",
-          body: JSON.stringify({ action: "call", name: selected.name, args }),
+          body: JSON.stringify({ action: "call-stream", name: selected.name, args }),
         });
-        const data = await res.json();
-        const text = data.ok ? prettify(resultToText(data.result)) : (data.error ?? "error");
-        const costUsd = data.ok ? extractCostUsd(data.result) : undefined;
-        setResult({ ok: data.ok, error: data.error, latencyMs: data.latencyMs, costUsd, text });
+        if (!res.body) throw new Error("no response stream");
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let final:
+          | { ok: boolean; error?: string; latencyMs?: number; result?: unknown }
+          | undefined;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line);
+            if (event.type === "status" && typeof event.elapsedMs === "number") {
+              setElapsedMs(event.elapsedMs);
+            } else if (event.type === "result") {
+              final = { ok: true, result: event.result, latencyMs: event.latencyMs };
+            } else if (event.type === "error") {
+              final = { ok: false, error: event.error };
+            }
+          }
+        }
+        if (!final) throw new Error("stream ended without a result");
+        const text = final.ok
+          ? prettify(resultToText(final.result))
+          : (final.error ?? "error");
+        const costUsd = final.ok ? extractCostUsd(final.result) : undefined;
+        setResult({ ok: final.ok, error: final.error, latencyMs: final.latencyMs, costUsd, text });
         pushHistory({
           id: crypto.randomUUID(),
           tool: selected.name,
           args,
-          ok: data.ok,
-          latencyMs: data.latencyMs,
+          ok: final.ok,
+          latencyMs: final.latencyMs,
           costUsd,
           resultPreview: text.slice(0, 400),
           at: new Date().toISOString(),
@@ -125,6 +156,11 @@ export default function ConsolePage() {
               </p>
             )}
             <InvokeForm tool={selected} running={running} onInvoke={invoke} />
+            {running && elapsedMs > 0 && (
+              <p className="mt-3 text-xs text-zinc-500">
+                running… {(elapsedMs / 1000).toFixed(0)}s elapsed
+              </p>
+            )}
             {result && (
               <div className="mt-6">
                 <div className="mb-2 flex items-center gap-4 text-xs text-zinc-400">

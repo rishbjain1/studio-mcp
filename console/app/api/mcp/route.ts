@@ -6,7 +6,45 @@ export const dynamic = "force-dynamic";
 
 type Body =
   | { action: "list" }
-  | { action: "call"; name: string; args: Record<string, unknown> };
+  | { action: "call"; name: string; args: Record<string, unknown> }
+  | { action: "call-stream"; name: string; args: Record<string, unknown> };
+
+// NDJSON stream: {type:"status"} heartbeats while the tool runs (long renders
+// block server-side), then one {type:"result"} or {type:"error"} line.
+function streamCall(name: string, args: Record<string, unknown>): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (obj: unknown) =>
+        controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+      const started = performance.now();
+      const heartbeat = setInterval(
+        () =>
+          send({
+            type: "status",
+            state: "running",
+            elapsedMs: Math.round(performance.now() - started),
+          }),
+        1000,
+      );
+      send({ type: "status", state: "started", tool: name });
+      try {
+        const result = await withMcpClient((c) =>
+          c.callTool({ name, arguments: args ?? {} }),
+        );
+        send({ type: "result", result, latencyMs: Math.round(performance.now() - started) });
+      } catch (err) {
+        send({ type: "error", error: err instanceof Error ? err.message : String(err) });
+      } finally {
+        clearInterval(heartbeat);
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
+  });
+}
 
 export async function POST(req: NextRequest) {
   let body: Body;
@@ -20,6 +58,10 @@ export async function POST(req: NextRequest) {
     if (body.action === "list") {
       const tools = await withMcpClient(async (c) => (await c.listTools()).tools);
       return NextResponse.json({ ok: true, tools });
+    }
+
+    if (body.action === "call-stream") {
+      return streamCall(body.name, body.args);
     }
 
     if (body.action === "call") {
