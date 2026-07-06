@@ -1,0 +1,416 @@
+[
+  {
+    "name": "plan_shots",
+    "description": "Turn a brief into a structured block-method shot plan.\n\n    Plans every shot (type, camera move, duration, action) before any pixel is\n    generated. Saves to the project's plan.json and returns it.\n\n    Args:\n        brief: plain-language description of the spot/scene.\n        project: project name (scopes all state, e.g. \"marea\").\n        n_shots: target number of shots.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "brief": {
+          "title": "Brief",
+          "type": "string"
+        },
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "n_shots": {
+          "default": 12,
+          "title": "N Shots",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "brief",
+        "project"
+      ],
+      "title": "plan_shotsArguments"
+    }
+  },
+  {
+    "name": "lock_campaign",
+    "description": "Lock the campaign look once \u2014 every shot's prompt inherits it.\n\n    Args:\n        project: project name.\n        aspect: Soul aspect ratio \u2014 one of 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3.\n            (No 2.39:1 in Soul \u2014 use 16:9 and crop to scope in post.)\n        camera: camera + film system, e.g. \"35mm film\".\n        day_stock: daytime film stock, e.g. \"Kodak Vision3 250D\".\n        hex_palette: HEX palette locking color DNA, e.g. [\"#1b2a3a\", \"#c8a15a\"].\n        elements: recurring named people/props/locations to keep consistent.\n        night_stock: nighttime stock, e.g. \"Cinestill 800T\" (optional).\n        vibe: the soul layer \u2014 feeling/era/references (optional; plan_shots seeds it).\n        style_header: grade + lighting + camera DNA baked into every prompt (optional).\n        lens_map: focal+aperture per intent, e.g. {\"face\": \"75mm f/1.4\"} (optional).\n        audio: audio rule (default: diegetic SFX, no music).\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "aspect": {
+          "title": "Aspect",
+          "type": "string"
+        },
+        "camera": {
+          "title": "Camera",
+          "type": "string"
+        },
+        "day_stock": {
+          "title": "Day Stock",
+          "type": "string"
+        },
+        "hex_palette": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hex Palette",
+          "type": "array"
+        },
+        "elements": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Elements",
+          "type": "array"
+        },
+        "night_stock": {
+          "default": "",
+          "title": "Night Stock",
+          "type": "string"
+        },
+        "vibe": {
+          "default": "",
+          "title": "Vibe",
+          "type": "string"
+        },
+        "style_header": {
+          "default": "",
+          "title": "Style Header",
+          "type": "string"
+        },
+        "lens_map": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lens Map"
+        },
+        "audio": {
+          "default": "diegetic SFX only, no music; lip-sync where dialogue",
+          "title": "Audio",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project",
+        "aspect",
+        "camera",
+        "day_stock",
+        "hex_palette",
+        "elements"
+      ],
+      "title": "lock_campaignArguments"
+    }
+  },
+  {
+    "name": "qc_still",
+    "description": "Style-drift QC on a generated still against the shot intent + locked look.\n\n    Vision model scores intent / look / character (0-100). Pass requires every\n    score >= threshold. Saves the verdict and returns it. An agent re-rolls the\n    still when pass is false, using fix_suggestion.\n\n    Args:\n        project: project name.\n        image: local path or http URL of the still to review.\n        shot_id: which shot in plan.json this still is for.\n        threshold: minimum passing score per dimension.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "image": {
+          "title": "Image",
+          "type": "string"
+        },
+        "shot_id": {
+          "title": "Shot Id",
+          "type": "integer"
+        },
+        "threshold": {
+          "default": 75,
+          "title": "Threshold",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project",
+        "image",
+        "shot_id"
+      ],
+      "title": "qc_stillArguments"
+    }
+  },
+  {
+    "name": "assemble",
+    "description": "Build the cut manifest \u2014 shot order, durations, and audio notes.\n\n    Uses the plan for order/timing. If clips (e.g. [{\"shot_id\":1,\"path\":\"...\"}])\n    are provided (v1.1+), they are attached per shot. The actual NLE cut stays\n    manual in v1; this is the edit blueprint.\n\n    Args:\n        project: project name.\n        clips: optional rendered-clip refs keyed by shot_id.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "clips": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clips"
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "title": "assembleArguments"
+    }
+  },
+  {
+    "name": "gen_still",
+    "description": "Render a Soul-mode still for one shot, on-model to the campaign lock.\n\n    Builds the prompt from the shot + lock, runs a Higgsfield image model, and\n    returns the result URL(s). Run qc_still next.\n\n    Args:\n        project: project name.\n        shot_id: which shot in plan.json.\n        note: director's note for a re-roll \u2014 pass a failed qc_still's\n            fix_suggestion here to correct the next render (closes the QC loop).\n        model: image model job_set_type to use (e.g. \"soul_cinematic\",\n            \"text2image_soul_v2\"). Defaults to STUDIO_IMAGE_MODEL. Use\n            list_models(\"image\") to see options.\n\n    Requires: `higgsfield auth login` + a model (param or STUDIO_IMAGE_MODEL).\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "shot_id": {
+          "title": "Shot Id",
+          "type": "integer"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project",
+        "shot_id"
+      ],
+      "title": "gen_stillArguments"
+    }
+  },
+  {
+    "name": "animate",
+    "description": "Animate a QC-passed still into a clip (img2vid).\n\n    Three modes:\n    - hero=True: the full Seedance hero path \u2014 vision reads the frame and writes a\n      timecoded, lip-sync-aware Seedance prompt (style prefix + SHOT beats +\n      liveness negatives); defaults to the seedance_2_0 model. For dialogue /\n      one-take / must-be-perfect shots.\n    - direct=True (default): a DP persona reads the frame and decides the cinematic\n      move; technical operator-as-human layer appended. Daily driver.\n    - both False: the fast template (no vision call). Bulk.\n\n    Args:\n        project: project name.\n        shot_id: which shot (for motion/duration).\n        still: local path or URL of the still to animate.\n        model: video model job_set_type. Defaults: hero\u2192seedance_2_0, else\n            STUDIO_VIDEO_MODEL (e.g. kling3_0_turbo).\n        direct: DP vision direction (ignored if hero=True).\n        hero: Seedance hero path (timecoded beats, lip-sync).\n\n    Requires: `higgsfield auth login` + a model.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "shot_id": {
+          "title": "Shot Id",
+          "type": "integer"
+        },
+        "still": {
+          "title": "Still",
+          "type": "string"
+        },
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        },
+        "direct": {
+          "default": true,
+          "title": "Direct",
+          "type": "boolean"
+        },
+        "hero": {
+          "default": false,
+          "title": "Hero",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "project",
+        "shot_id",
+        "still"
+      ],
+      "title": "animateArguments"
+    }
+  },
+  {
+    "name": "train_character",
+    "description": "Train a Soul character reference (self-clone) from 3-5 photos.\n\n    Uploads each photo, trains a Soul-2 reference, saves the soul_id to project\n    state. Use the soul_id in later gen_still runs for a face-consistent character.\n\n    Requires: `higgsfield auth login`.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "photos": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Photos",
+          "type": "array"
+        }
+      },
+      "required": [
+        "project",
+        "name",
+        "photos"
+      ],
+      "title": "train_characterArguments"
+    }
+  },
+  {
+    "name": "project_status",
+    "description": "Report what stages exist for a project (plan / lock / QC / manifest).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "title": "project_statusArguments"
+    }
+  },
+  {
+    "name": "reference_prompt",
+    "description": "Break a reference image into a ready-to-use 6-layer prompt.\n\n    References are for understanding, not copying: a vision model extracts the\n    vibe/lighting/camera/finish and outputs a prompt that recreates the *look*.\n    Optionally swap the subject while keeping the look locked.\n\n    Args:\n        reference: local path or URL of the reference image.\n        swap_subject: if set, keep the look but swap to this subject\n            (e.g. \"a woman in a grey wool coat on a dusk shore\").\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "reference": {
+          "title": "Reference",
+          "type": "string"
+        },
+        "swap_subject": {
+          "default": "",
+          "title": "Swap Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reference"
+      ],
+      "title": "reference_promptArguments"
+    }
+  },
+  {
+    "name": "palette_from_image",
+    "description": "Extract a HEX palette (dominant/secondary/accent) from a reference image.\n\n    Feed the returned hex_palette into lock_campaign to lock a film's color DNA\n    from a moodboard or still.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "title": "Image",
+          "type": "string"
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "title": "palette_from_imageArguments"
+    }
+  },
+  {
+    "name": "cut",
+    "description": "Concatenate the project's rendered clips into one mp4 (hard cuts, in plan order).\n\n    Reads the shot order from plan.json, pulls each animated clip (assets/clip_N.json),\n    and ffmpeg-concats them into <project>_cut.mp4. Local + free (no credits). Run\n    after animating the shots. Music is added in post (clips are SFX-only by rule).\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "title": "cutArguments"
+    }
+  },
+  {
+    "name": "upscale",
+    "description": "Final-polish upscale of an image or video via Higgsfield.\n\n    Args:\n        media: local path or URL of the image/video to upscale.\n        kind: \"image\" or \"video\".\n        model: upscale model (defaults: image=bytedance_image_upscale,\n            video=topaz_video). Use list_models to see options.\n\n    Requires: `higgsfield auth login`. Costs credits.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "media": {
+          "title": "Media",
+          "type": "string"
+        },
+        "kind": {
+          "default": "image",
+          "title": "Kind",
+          "type": "string"
+        },
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "required": [
+        "media"
+      ],
+      "title": "upscaleArguments"
+    }
+  },
+  {
+    "name": "craft_lookup",
+    "description": "Query the creative-rag craft knowledge base for grounded, cited guidance.\n\n    Pulls from your documented craft corpus (stocks, lenses, lighting, prompt\n    structure) with citations + a verification verdict \u2014 use it while planning or\n    locking a shot so prompts are grounded in your real library, not generic\n    knowledge. Returns {answer, sources, verification}.\n\n    Requires creative-rag running. Set CRAG_URL (default http://127.0.0.1:8000)\n    and CRAG_API_KEY if the service is auth-gated.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "top_k": {
+          "default": 4,
+          "title": "Top K",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "title": "craft_lookupArguments"
+    }
+  },
+  {
+    "name": "list_models",
+    "description": "List available Higgsfield models so you can pick one for gen_still/animate.\n\n    Args:\n        kind: \"image\" (for gen_still) or \"video\" (for animate).\n\n    Returns the model job_set_types + names. Playbook routing: stills \u2192\n    \"soul_cinematic\" (Soul Cinema) or \"text2image_soul_v2\" (Soul V2); video \u2192\n    \"kling3_0_turbo\"/\"kling3_0\" (daily driver ~85%) or \"seedance_2_0\" (hero,\n    zero morph, lip-sync). Pass the chosen job_set_type as the `model` arg.\n\n    Requires: `higgsfield auth login`.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "default": "image",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "list_modelsArguments"
+    }
+  }
+]

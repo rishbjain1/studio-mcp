@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { demoResult } from "@/lib/demo/results";
+import demoTools from "@/lib/demo/tools.json";
 import { withMcpClient } from "@/lib/mcp-client";
 
 export const dynamic = "force-dynamic";
+
+// STUDIO_DEMO=1 serves canned fixtures instead of a live MCP server, so the
+// console can deploy (e.g. Vercel) as a browsable demo.
+const DEMO = process.env.STUDIO_DEMO === "1";
 
 type Body =
   | { action: "list" }
@@ -52,6 +58,22 @@ export async function POST(req: NextRequest) {
     body = (await req.json()) as Body;
   } catch {
     return NextResponse.json({ ok: false, error: "invalid JSON body" }, { status: 400 });
+  }
+
+  if (DEMO) {
+    if (body.action === "list") return NextResponse.json({ ok: true, tools: demoTools, demo: true });
+    if (body.action === "call" || body.action === "call-stream") {
+      // call-stream in demo mode degrades to a single-line NDJSON result,
+      // which the client reader handles identically.
+      const payload = { type: "result", result: demoResult(body.name), latencyMs: 42 };
+      if (body.action === "call-stream") {
+        return new Response(JSON.stringify(payload) + "\n", {
+          headers: { "Content-Type": "application/x-ndjson" },
+        });
+      }
+      return NextResponse.json({ ok: true, result: payload.result, latencyMs: payload.latencyMs });
+    }
+    return NextResponse.json({ ok: false, error: "unknown action" }, { status: 400 });
   }
 
   try {

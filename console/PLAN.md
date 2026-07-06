@@ -9,7 +9,8 @@
 - [x] Result panel — output + latency + cost (reuse the per-call tracing already in `studio_mcp/llm.py`)
 - [x] Run history (local persistence first, then optional server store)
 - [x] Live status streaming for long tools (NDJSON heartbeats + final result; per-frame render progress blocked by Higgsfield CLI --wait)
-- [ ] Deploy (Vercel) + link from repo README
+- [x] Demo mode (STUDIO_DEMO=1 serves captured fixtures — deployable with no server)
+- [ ] Deploy (Vercel) + link from repo README (needs go-ahead: outward-facing)
 
 ## Notes
 
