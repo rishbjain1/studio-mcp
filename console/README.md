@@ -1,27 +1,42 @@
 # studio-mcp console
 
 A React / Next.js web console over the studio-mcp Model Context Protocol server.
-
-## Goal
-
-Give the MCP tool platform a browser UI: list the available tools, invoke any tool
-with a form built from its input schema, stream live output, and keep a run history.
 Turns the CLI/MCP-client-only pipeline into something a non-terminal user can drive.
 
-## Planned surface
+## Features
 
-- **Tool browser** — read the MCP server's `tools/list`, render each tool with its schema.
-- **Invoke panel** — schema-driven form per tool, submit to a Node/Next API route that
-  proxies to the MCP server, show result + latency + cost.
-- **Run history** — persist past invocations (tool, args, output, timing) for replay.
-- **Live output** — stream long-running tool output (gen/animate/assemble) to the UI.
+- **Tool browser** — reads the server's `tools/list`, renders all 14 tools.
+- **Invoke panel** — schema-driven form per tool (enum/boolean/number/JSON widgets,
+  required-field checks), submitted through a server-side proxy.
+- **Result panel** — output plus wall latency and per-call LLM cost pulled from the
+  server's tracing payloads.
+- **Live streaming** — long tools (`gen_still` / `animate` / `assemble`) stream
+  NDJSON status heartbeats so the UI shows elapsed time while the render blocks.
+- **Run history** — last 50 invocations persisted to localStorage, survives reload.
+- **Demo mode** — `STUDIO_DEMO=1` serves captured fixtures with no MCP server
+  behind it (for Vercel-style deployments).
 
-## Stack
+## Run it
 
-- Next.js (App Router) + React + TypeScript
-- Tailwind for styling
-- Server-side API routes as the MCP proxy (Node)
+```bash
+# 1. the MCP server, over HTTP (repo root)
+studio-mcp --transport streamable-http          # 127.0.0.1:8321
 
-## Status
+# 2. the console
+cd console
+npm install
+npm run dev                                     # http://localhost:3000
+```
 
-🚧 In progress — scaffolding. See `PLAN.md` for the build checklist.
+`STUDIO_MCP_URL` overrides the server URL (default `http://127.0.0.1:8321/mcp`).
+
+## Architecture
+
+- Next.js 15 App Router + React 19 + TypeScript + Tailwind v4.
+- `app/api/mcp/route.ts` — the only path that touches the MCP server
+  (TypeScript MCP SDK over streamable HTTP), so keys and the server stay
+  off the browser. Actions: `list`, `call`, `call-stream` (NDJSON).
+- `components/InvokeForm.tsx` — JSON Schema → form fields, including FastMCP's
+  `anyOf` optionals.
+
+See `PLAN.md` for the build checklist and what's still open.
