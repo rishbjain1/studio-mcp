@@ -1,0 +1,22 @@
+{
+  "name": "studio-mcp-console",
+  "version": "0.0.0",
+  "private": true,
+  "description": "React/Next.js web console over the studio-mcp Model Context Protocol server",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}
