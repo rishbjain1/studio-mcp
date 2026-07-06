@@ -30,9 +30,11 @@ Today the pipeline is a fixed sequence of tool calls. Making it an agent graph g
       `tests/test_orchestration.py`: all-pass, retry-with-fix-suggestion, gate-halt,
       gate-override paths)
 - [ ] Live end-to-end run on the MARÉA project (spends render + LLM credits — needs go-ahead)
-- [ ] Swap PlannerAgent's decision layer onto the Anthropic Agent SDK
+- [x] SDKPlannerAgent — PlannerAgent's decision layer on the Anthropic Agent SDK
+      (`sdk_planner.py`, optional `pip install studio-mcp[sdk]`; offline-tested with a
+      stubbed `query`; live SDK runs use the local Claude runtime = operator's auth)
 
 ## Status
 
-✅ Graph implemented + offline smoke tests green (19/19 suite).
+✅ Graph implemented + offline smoke tests green (20/20 suite).
 Run it:  `python -m studio_mcp.orchestration --project marea --brief "..." [--yes]`

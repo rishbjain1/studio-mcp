@@ -119,3 +119,31 @@ def test_gate_approval_forces_shot_through(project, monkeypatch):
 
     assert all(c.get("forced") for c in result["clips"])
     assert result["manifest"]["total_duration_s"] == 7
+
+
+def test_sdk_planner_offline(project, monkeypatch):
+    """SDKPlannerAgent drives the same graph; the Agent SDK query is stubbed."""
+    from claude_agent_sdk import AssistantMessage, TextBlock
+
+    from studio_mcp.orchestration import sdk_planner
+
+    async def fake_query(*, prompt, options=None):
+        assert "shot" in prompt.lower()  # got the real plan_user prompt
+        yield AssistantMessage(
+            content=[TextBlock(text=json.dumps(PLAN))], model="stub-model"
+        )
+
+    monkeypatch.setattr(sdk_planner, "query", fake_query)
+    monkeypatch.setattr(
+        llm, "vision_json",
+        lambda image, prompt: {"scores": {"intent": 90, "look": 90, "character": 90},
+                               "pass": True, "fix_suggestion": ""},
+    )
+
+    ctx = RunContext(project=project, brief="sdk-planned spot")
+    orch = Orchestrator(planner=sdk_planner.SDKPlannerAgent())
+    result = orch.run(ctx)
+
+    assert result["manifest"]["total_duration_s"] == 7
+    assert state.load(project, "plan.json")["brief"] == "sdk-planned spot"
+    assert any(s.agent == "planner-sdk" for s in ctx.trace)
