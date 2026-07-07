@@ -8,6 +8,7 @@ Run:  studio-mcp           (stdio)
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -451,7 +452,20 @@ def list_models(kind: str = "image") -> dict:
 
 
 def main() -> None:
-    mcp.run()
+    parser = argparse.ArgumentParser(prog="studio-mcp")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "streamable-http"],
+        default="stdio",
+        help="stdio for local MCP clients; streamable-http for the web console",
+    )
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8321)
+    args = parser.parse_args()
+    if args.transport == "streamable-http":
+        mcp.settings.host = args.host
+        mcp.settings.port = args.port
+    mcp.run(transport=args.transport)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,23 @@
+# Console build plan
+
+## Checklist
+
+- [x] Scaffold Next.js App Router + TypeScript + Tailwind
+- [x] MCP proxy API route (`/api/mcp/[...]`) — connect to studio-mcp server, expose `tools/list` + `tools/call`
+- [x] Tool browser page — fetch tool list, render name + description + schema
+- [x] Schema-driven invoke form (json-schema → form fields)
+- [x] Result panel — output + latency + cost (reuse the per-call tracing already in `studio_mcp/llm.py`)
+- [x] Run history (local persistence first, then optional server store)
+- [x] Live status streaming for long tools (NDJSON heartbeats + final result; per-frame render progress blocked by Higgsfield CLI --wait)
+- [x] Demo mode (STUDIO_DEMO=1 serves captured fixtures — deployable with no server)
+- [ ] Deploy (Vercel) + link from repo README (needs go-ahead: outward-facing)
+
+- [x] The Director — LLM-driven mode (00 on the rail): brief in, Claude picks and
+      drives the instruments over an agentic tool-use loop (bounded steps/tokens,
+      renders only on explicit ask), transcript with instrument chips, tool runs
+      logged to the reel. Demo mode ships a scripted session.
+
+## Notes
+
+- The server already emits per-LLM-call cost + latency (see main branch obs commit) — surface those in the result panel.
+- Keep the proxy server-side so API keys never reach the browser.
