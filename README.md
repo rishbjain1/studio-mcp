@@ -22,6 +22,21 @@ Single-tool MCP servers (one model, one call) are common. This is the layer abov
 it **orchestrates** across your generation stack with a block-method planner and a
 style-drift QC gate — the part nobody ships.
 
+## Three ways to drive it
+
+- **As an MCP server** — connect to Claude Desktop / Claude Code and the LLM calls
+  the 14 tools directly (stdio, or `--transport streamable-http` for web clients).
+- **The web console** — a cinematic "grading bay" UI over the server: browse
+  instruments, invoke them from schema-driven forms, stream long renders, and brief
+  **the Director** (an LLM that drives the instruments for you). Live demo:
+  **https://console-pied-eight.vercel.app** · [`console/`](console/).
+- **The orchestration graph** — Planner → Generation ⇄ QC → Assembly as an agent
+  graph with retries, human gates, and replayable per-run traces
+  ([`studio_mcp/orchestration/`](studio_mcp/orchestration/)).
+
+Plus **Langfuse tracing + an offline benchmark suite** for evaluating the pipeline
+([`eval/`](eval/)). CI runs tests on 3.10–3.12 and builds the package on every push.
+
 ## Tools (14)
 
 **Plan & lock**
