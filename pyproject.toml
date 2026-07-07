@@ -13,6 +13,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 eval = ["langfuse>=4"]
+sdk = ["claude-agent-sdk>=0.2"]
 
 [project.scripts]
 studio-mcp = "studio_mcp.server:main"
