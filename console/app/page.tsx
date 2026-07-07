@@ -114,107 +114,165 @@ export default function ConsolePage() {
     [selected, pushHistory],
   );
 
-  return (
-    <main className="flex h-screen">
-      {/* Tool browser */}
-      <aside className="w-64 shrink-0 overflow-y-auto border-r border-zinc-800 p-3">
-        <h1 className="mb-3 text-sm font-semibold tracking-wide text-zinc-400">
-          studio-mcp console
-        </h1>
-        {connectError && (
-          <p className="mb-2 rounded bg-red-950 p-2 text-xs text-red-300">
-            MCP server unreachable: {connectError}
-          </p>
-        )}
-        <ul className="space-y-1">
-          {tools.map((t) => (
-            <li key={t.name}>
-              <button
-                onClick={() => {
-                  setSelected(t);
-                  setResult(undefined);
-                }}
-                className={`w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-800 ${
-                  selected?.name === t.name ? "bg-zinc-800 text-indigo-300" : ""
-                }`}
-              >
-                {t.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
+  const num = (i: number) => String(i + 1).padStart(2, "0");
 
-      {/* Invoke + result */}
-      <section className="flex-1 overflow-y-auto p-6">
-        {selected ? (
-          <>
-            <h2 className="text-lg font-semibold">{selected.name}</h2>
-            {selected.description && (
-              <p className="mt-1 mb-4 max-w-2xl whitespace-pre-wrap text-sm text-zinc-400">
-                {selected.description.split("\n\n")[0]}
+  return (
+    <main className="relative z-10 flex h-screen flex-col">
+      <div className="desk-top h-px w-full shrink-0" />
+
+      {/* Masthead */}
+      <header className="flex shrink-0 items-baseline justify-between border-b border-line px-6 py-3">
+        <div className="flex items-baseline gap-3">
+          <span className="serif text-2xl leading-none text-ink">studio·mcp</span>
+          <span className="slate-label">grading bay</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="slate-label">
+            {tools.length} instruments{" "}
+            <span className="text-brass-dim">·</span>{" "}
+            {history.length} takes
+          </span>
+          <span
+            className={`flex items-center gap-1.5 slate-label ${
+              connectError ? "text-bad" : "text-ok"
+            }`}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+            {connectError ? "offline" : "live"}
+          </span>
+        </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {/* Instrument rail */}
+        <aside className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-line px-3 py-4">
+          <p className="slate-label mb-3 px-1">Instruments</p>
+          {connectError && (
+            <p className="mb-3 rounded-sm border border-bad/30 bg-bad/10 p-2 text-[11px] leading-relaxed text-bad">
+              server unreachable — {connectError}
+            </p>
+          )}
+          <ul>
+            {tools.map((t, i) => {
+              const active = selected?.name === t.name;
+              return (
+                <li key={t.name} className="rise" style={{ animationDelay: `${i * 32}ms` }}>
+                  <button
+                    onClick={() => {
+                      setSelected(t);
+                      setResult(undefined);
+                    }}
+                    className={`group flex w-full items-baseline gap-2 border-l-2 py-1.5 pl-3 pr-2 text-left text-[13px] transition-colors ${
+                      active
+                        ? "border-brass bg-brass/5 text-brass"
+                        : "border-transparent text-ink-dim hover:border-line-2 hover:text-ink"
+                    }`}
+                  >
+                    <span className={`text-[10px] tabular-nums ${active ? "text-brass-dim" : "text-ink-faint"}`}>
+                      {num(i)}
+                    </span>
+                    <span>{t.name}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </aside>
+
+        {/* The bay */}
+        <section className="min-w-0 flex-1 overflow-y-auto px-8 py-7">
+          {selected ? (
+            <>
+              <p className="slate-label">Instrument · {selected.name}</p>
+              <h2 className="serif mt-1 text-4xl leading-tight text-ink">
+                {selected.name.replace(/_/g, " ")}
+              </h2>
+              {selected.description && (
+                <p className="mt-3 mb-7 max-w-xl text-[13px] leading-relaxed text-ink-dim">
+                  {selected.description.split("\n\n")[0]}
+                </p>
+              )}
+              <InvokeForm tool={selected} running={running} onInvoke={invoke} />
+
+              {running && elapsedMs > 0 && (
+                <p className="mt-4 flex items-center gap-2 text-[11px] text-brass">
+                  <span className="rec-dot inline-block h-2 w-2 rounded-full bg-bad" />
+                  rolling · {(elapsedMs / 1000).toFixed(0)}s
+                </p>
+              )}
+
+              {result && (
+                <div className="mt-8">
+                  <div className="mb-2 flex items-center gap-5 slate-label">
+                    <span className={result.ok ? "text-ok" : "text-bad"}>
+                      {result.ok ? "● printed" : "● no good"}
+                    </span>
+                    {result.latencyMs !== undefined && (
+                      <span className="text-ink-faint">{result.latencyMs}ms</span>
+                    )}
+                    {result.costUsd !== undefined && (
+                      <span className="text-brass-dim">${result.costUsd.toFixed(4)}</span>
+                    )}
+                  </div>
+                  <pre className="max-h-[52vh] overflow-auto rounded-sm border border-line bg-film-2 p-4 text-[12px] leading-relaxed text-ink-dim">
+                    {result.text}
+                  </pre>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex h-full max-w-md flex-col justify-center">
+              <p className="slate-label mb-3">No instrument loaded</p>
+              <p className="serif text-3xl leading-snug text-ink">
+                Pick an instrument to compose a take.
               </p>
-            )}
-            <InvokeForm tool={selected} running={running} onInvoke={invoke} />
-            {running && elapsedMs > 0 && (
-              <p className="mt-3 text-xs text-zinc-500">
-                running… {(elapsedMs / 1000).toFixed(0)}s elapsed
+              <p className="mt-4 text-[13px] leading-relaxed text-ink-dim">
+                The bay speaks to the pipeline over{" "}
+                <code className="rounded-sm bg-film-2 px-1.5 py-0.5 text-brass">
+                  studio-mcp --transport streamable-http
+                </code>
+                . Every take is timed, priced, and logged to the reel.
               </p>
-            )}
-            {result && (
-              <div className="mt-6">
-                <div className="mb-2 flex items-center gap-4 text-xs text-zinc-400">
-                  <span className={result.ok ? "text-emerald-400" : "text-red-400"}>
-                    {result.ok ? "OK" : "ERROR"}
+            </div>
+          )}
+        </section>
+
+        {/* The reel — run history */}
+        <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-l border-line px-3 py-4">
+          <p className="slate-label mb-3 px-1">Takes</p>
+          {history.length === 0 && (
+            <p className="px-1 text-[11px] text-ink-faint">Reel empty.</p>
+          )}
+          <ul className="space-y-1.5">
+            {history.map((h, i) => (
+              <li
+                key={h.id}
+                className="group rounded-sm border border-line bg-film-2/60 p-2.5 text-[11px] transition-colors hover:border-line-2"
+                title={JSON.stringify(h.args, null, 2)}
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="flex items-baseline gap-1.5 text-ink">
+                    <span className="text-ink-faint tabular-nums">
+                      T{num(history.length - 1 - i)}
+                    </span>
+                    {h.tool}
                   </span>
-                  {result.latencyMs !== undefined && <span>{result.latencyMs} ms</span>}
-                  {result.costUsd !== undefined && (
-                    <span>${result.costUsd.toFixed(4)} LLM cost</span>
+                  <span className={h.ok ? "text-ok" : "text-bad"}>
+                    {h.ok ? "●" : "○"}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex gap-3 text-ink-faint tabular-nums">
+                  <span>{new Date(h.at).toLocaleTimeString()}</span>
+                  {h.latencyMs !== undefined && <span>{h.latencyMs}ms</span>}
+                  {h.costUsd !== undefined && (
+                    <span className="text-brass-dim">${h.costUsd.toFixed(4)}</span>
                   )}
                 </div>
-                <pre className="max-h-[50vh] overflow-auto rounded border border-zinc-800 bg-zinc-900 p-3 text-xs leading-relaxed">
-                  {result.text}
-                </pre>
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="text-sm text-zinc-500">
-            Pick a tool on the left. Start the server with{" "}
-            <code className="rounded bg-zinc-900 px-1">
-              studio-mcp --transport streamable-http
-            </code>
-            .
-          </p>
-        )}
-      </section>
-
-      {/* Run history */}
-      <aside className="w-72 shrink-0 overflow-y-auto border-l border-zinc-800 p-3">
-        <h3 className="mb-2 text-sm font-semibold text-zinc-400">Run history</h3>
-        {history.length === 0 && <p className="text-xs text-zinc-600">No runs yet.</p>}
-        <ul className="space-y-2">
-          {history.map((h) => (
-            <li
-              key={h.id}
-              className="rounded border border-zinc-800 p-2 text-xs"
-              title={JSON.stringify(h.args, null, 2)}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{h.tool}</span>
-                <span className={h.ok ? "text-emerald-400" : "text-red-400"}>
-                  {h.ok ? "ok" : "err"}
-                </span>
-              </div>
-              <div className="mt-1 flex gap-3 text-zinc-500">
-                <span>{new Date(h.at).toLocaleTimeString()}</span>
-                {h.latencyMs !== undefined && <span>{h.latencyMs} ms</span>}
-                {h.costUsd !== undefined && <span>${h.costUsd.toFixed(4)}</span>}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </aside>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      </div>
     </main>
   );
 }

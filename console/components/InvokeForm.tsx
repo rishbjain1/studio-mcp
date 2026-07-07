@@ -29,21 +29,23 @@ function Field({
 }) {
   const s = resolve(schema);
   const label = (
-    <label className="block text-sm font-medium text-zinc-300">
-      {name}
-      {required && <span className="text-red-400"> *</span>}
+    <label className="flex items-baseline gap-2">
+      <span className="slate-label text-ink-dim">{name}</span>
+      {required && <span className="text-[9px] text-brass">req</span>}
       {s.description && (
-        <span className="ml-2 font-normal text-zinc-500">{s.description}</span>
+        <span className="text-[11px] font-normal normal-case tracking-normal text-ink-faint">
+          {s.description}
+        </span>
       )}
     </label>
   );
 
   if (s.enum) {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {label}
         <select
-          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+          className="field w-full px-2.5 py-2 text-[13px] text-ink"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         >
@@ -60,24 +62,30 @@ function Field({
 
   if (s.type === "boolean") {
     return (
-      <div className="flex items-center gap-2">
+      <label className="flex cursor-pointer items-center gap-2.5">
         <input
           type="checkbox"
+          className="h-3.5 w-3.5 accent-[var(--color-brass)]"
           checked={value === "true"}
           onChange={(e) => onChange(e.target.checked ? "true" : "false")}
         />
-        {label}
-      </div>
+        <span className="slate-label text-ink-dim">{name}</span>
+        {s.description && (
+          <span className="text-[11px] normal-case tracking-normal text-ink-faint">
+            {s.description}
+          </span>
+        )}
+      </label>
     );
   }
 
   if (s.type === "object" || s.type === "array") {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {label}
         <textarea
-          className="h-24 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-sm"
-          placeholder={s.type === "array" ? "[…] JSON" : "{…} JSON"}
+          className="field h-24 w-full px-2.5 py-2 text-[12px] text-ink"
+          placeholder={s.type === "array" ? "[ … ]" : "{ … }"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -86,10 +94,10 @@ function Field({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {label}
       <input
-        className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+        className="field w-full px-2.5 py-2 text-[13px] text-ink"
         type={s.type === "number" || s.type === "integer" ? "number" : "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -148,9 +156,9 @@ export default function InvokeForm({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="max-w-xl space-y-4">
       {props.length === 0 && (
-        <p className="text-sm text-zinc-500">No parameters.</p>
+        <p className="text-[12px] text-ink-faint">No parameters.</p>
       )}
       {props.map(([name, schema]) => (
         <Field
@@ -162,13 +170,14 @@ export default function InvokeForm({
           onChange={(v) => setValues((prev) => ({ ...prev, [name]: v }))}
         />
       ))}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-[12px] text-bad">{error}</p>}
       <button
         type="submit"
         disabled={running}
-        className="rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
+        className="group mt-1 inline-flex items-center gap-2 rounded-sm border border-brass-dim bg-brass/10 px-5 py-2 text-[11px] uppercase tracking-[0.2em] text-brass transition-colors hover:bg-brass/20 disabled:opacity-40"
       >
-        {running ? "Running…" : "Invoke"}
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brass" />
+        {running ? "rolling" : "roll take"}
       </button>
     </form>
   );
