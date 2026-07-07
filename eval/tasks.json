@@ -1,0 +1,89 @@
+[
+  {
+    "id": "marea-dawn-swim",
+    "brief": "Dawn beach. A woman walks to the water alone, dips under, the surface stills. Slow-burn, no dialogue, diegetic sound only.",
+    "n_shots": 3,
+    "lock": {
+      "aspect": "16:9",
+      "camera": "35mm film",
+      "day_stock": "Kodak Vision3 250D",
+      "hex_palette": ["#1b2a3a", "#c8a15a"],
+      "elements": ["MARÉA woman", "dawn beach"]
+    },
+    "expected": {
+      "n_shots": 3,
+      "max_total_duration_s": 15,
+      "must_mention": ["beach", "water"],
+      "no_music": true
+    },
+    "stub_plan": {
+      "title": "MARÉA — dawn swim",
+      "shots": [
+        {"id": 1, "type": "wide", "camera_move": "slow push-in", "duration_s": 4,
+         "action": "empty dawn beach, tide receding, one towel on the sand"},
+        {"id": 2, "type": "medium", "camera_move": "handheld follow", "duration_s": 3,
+         "action": "she walks toward the water, robe drops out of frame"},
+        {"id": 3, "type": "close", "camera_move": "static", "duration_s": 3,
+         "action": "breath held; she dips under the water, surface stills"}
+      ]
+    }
+  },
+  {
+    "id": "lego-worldcup-kitchen",
+    "brief": "A kid rebuilds the World Cup final on the kitchen floor with LEGO. The winning goal is scored by a minifig; the crowd is cereal boxes. Dialogue: the kid says \"goal\".",
+    "n_shots": 4,
+    "lock": {
+      "aspect": "16:9",
+      "camera": "35mm film",
+      "day_stock": "Kodak Vision3 250D",
+      "hex_palette": ["#d9042b", "#f2b705"],
+      "elements": ["kid", "LEGO pitch", "kitchen floor"]
+    },
+    "expected": {
+      "n_shots": 4,
+      "max_total_duration_s": 20,
+      "must_mention": ["LEGO", "kitchen"],
+      "no_music": true
+    },
+    "stub_plan": {
+      "title": "LEGO — kitchen final",
+      "shots": [
+        {"id": 1, "type": "wide", "camera_move": "top-down crane", "duration_s": 4,
+         "action": "LEGO pitch assembled on the kitchen floor, cereal-box crowd"},
+        {"id": 2, "type": "macro", "camera_move": "dolly along the pitch", "duration_s": 4,
+         "action": "minifig striker lines up, kitchen light glints on plastic"},
+        {"id": 3, "type": "close", "camera_move": "whip pan", "duration_s": 3,
+         "action": "the flick — brick ball arcs over the LEGO keeper"},
+        {"id": 4, "type": "medium", "camera_move": "handheld", "duration_s": 3,
+         "action": "kid leaps up and says \"goal\", cereal crowd topples"}
+      ]
+    }
+  },
+  {
+    "id": "constraint-violator",
+    "brief": "Control task: the stub plan intentionally violates the expected constraints, so scorers must catch it.",
+    "n_shots": 2,
+    "lock": {
+      "aspect": "16:9",
+      "camera": "35mm film",
+      "day_stock": "Kodak Vision3 250D",
+      "hex_palette": ["#000000"],
+      "elements": []
+    },
+    "expected": {
+      "n_shots": 3,
+      "max_total_duration_s": 5,
+      "must_mention": ["submarine"],
+      "no_music": true
+    },
+    "stub_plan": {
+      "title": "control — violates constraints",
+      "shots": [
+        {"id": 1, "type": "wide", "camera_move": "static", "duration_s": 6,
+         "action": "a desert, nothing else"},
+        {"id": 2, "type": "close", "camera_move": "static", "duration_s": 6,
+         "action": "sand"}
+      ]
+    }
+  }
+]
