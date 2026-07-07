@@ -90,16 +90,21 @@ export default function ConsolePage() {
           }
         }
         if (!final) throw new Error("stream ended without a result");
+        // A tool can fail while the transport succeeds — surface isError as a failed take.
+        const toolFailed = Boolean(
+          (final.result as { isError?: boolean } | undefined)?.isError,
+        );
+        const ok = final.ok && !toolFailed;
         const text = final.ok
           ? prettify(resultToText(final.result))
           : (final.error ?? "error");
-        const costUsd = final.ok ? extractCostUsd(final.result) : undefined;
-        setResult({ ok: final.ok, error: final.error, latencyMs: final.latencyMs, costUsd, text });
+        const costUsd = ok ? extractCostUsd(final.result) : undefined;
+        setResult({ ok, error: final.error, latencyMs: final.latencyMs, costUsd, text });
         pushHistory({
           id: crypto.randomUUID(),
           tool: selected.name,
           args,
-          ok: final.ok,
+          ok,
           latencyMs: final.latencyMs,
           costUsd,
           resultPreview: text.slice(0, 400),
