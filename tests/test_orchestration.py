@@ -123,6 +123,8 @@ def test_gate_approval_forces_shot_through(project, monkeypatch):
 
 def test_sdk_planner_offline(project, monkeypatch):
     """SDKPlannerAgent drives the same graph; the Agent SDK query is stubbed."""
+    # Optional extra: pip install studio-mcp[sdk]. Skip cleanly if absent.
+    pytest.importorskip("claude_agent_sdk")
     from claude_agent_sdk import AssistantMessage, TextBlock
 
     from studio_mcp.orchestration import sdk_planner
