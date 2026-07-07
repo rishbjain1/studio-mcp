@@ -3,7 +3,14 @@
 A React / Next.js web console over the studio-mcp Model Context Protocol server.
 Turns the CLI/MCP-client-only pipeline into something a non-terminal user can drive.
 
+**Live demo:** https://console-pied-eight.vercel.app (demo mode — fixtures, no
+server behind it). Run it against a real server locally for live tool calls.
+
 ## Features
+
+- **The Director** — brief an LLM in plain language and it drives the
+  instruments for you: inspects project state, picks tools, calls them over an
+  agentic loop, and asks before spending render credits.
 
 - **Tool browser** — reads the server's `tools/list`, renders all 14 tools.
 - **Invoke panel** — schema-driven form per tool (enum/boolean/number/JSON widgets,
