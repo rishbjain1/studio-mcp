@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import Director from "@/components/Director";
 import InvokeForm from "@/components/InvokeForm";
 import { extractCostUsd, prettify, resultToText } from "@/lib/result";
 import type { McpTool, RunRecord } from "@/lib/types";
@@ -20,6 +21,7 @@ export default function ConsolePage() {
   const [tools, setTools] = useState<McpTool[]>([]);
   const [connectError, setConnectError] = useState<string>();
   const [selected, setSelected] = useState<McpTool>();
+  const [directorMode, setDirectorMode] = useState(false);
   const [running, setRunning] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [result, setResult] = useState<RunResult>();
@@ -157,6 +159,23 @@ export default function ConsolePage() {
               server unreachable — {connectError}
             </p>
           )}
+          <button
+            onClick={() => {
+              setDirectorMode(true);
+              setSelected(undefined);
+              setResult(undefined);
+            }}
+            className={`mb-2 flex w-full items-baseline gap-2 border-l-2 py-1.5 pl-3 pr-2 text-left text-[13px] transition-colors ${
+              directorMode
+                ? "border-brass bg-brass/5 text-brass"
+                : "border-transparent text-ink-dim hover:border-line-2 hover:text-ink"
+            }`}
+          >
+            <span className={`text-[10px] tabular-nums ${directorMode ? "text-brass-dim" : "text-ink-faint"}`}>
+              00
+            </span>
+            <span className="serif text-[15px]">the director</span>
+          </button>
           <ul>
             {tools.map((t, i) => {
               const active = selected?.name === t.name;
@@ -165,6 +184,7 @@ export default function ConsolePage() {
                   <button
                     onClick={() => {
                       setSelected(t);
+                      setDirectorMode(false);
                       setResult(undefined);
                     }}
                     className={`group flex w-full items-baseline gap-2 border-l-2 py-1.5 pl-3 pr-2 text-left text-[13px] transition-colors ${
@@ -186,7 +206,21 @@ export default function ConsolePage() {
 
         {/* The bay */}
         <section className="min-w-0 flex-1 overflow-y-auto px-8 py-7">
-          {selected ? (
+          {directorMode ? (
+            <Director
+              onToolRun={(name, ok, latencyMs, preview) =>
+                pushHistory({
+                  id: crypto.randomUUID(),
+                  tool: `${name} ⌁`,
+                  args: {},
+                  ok,
+                  latencyMs,
+                  resultPreview: preview,
+                  at: new Date().toISOString(),
+                })
+              }
+            />
+          ) : selected ? (
             <>
               <p className="slate-label">Instrument · {selected.name}</p>
               <h2 className="serif mt-1 text-4xl leading-tight text-ink">

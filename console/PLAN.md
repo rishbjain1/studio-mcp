@@ -12,6 +12,11 @@
 - [x] Demo mode (STUDIO_DEMO=1 serves captured fixtures — deployable with no server)
 - [ ] Deploy (Vercel) + link from repo README (needs go-ahead: outward-facing)
 
+- [x] The Director — LLM-driven mode (00 on the rail): brief in, Claude picks and
+      drives the instruments over an agentic tool-use loop (bounded steps/tokens,
+      renders only on explicit ask), transcript with instrument chips, tool runs
+      logged to the reel. Demo mode ships a scripted session.
+
 ## Notes
 
 - The server already emits per-LLM-call cost + latency (see main branch obs commit) — surface those in the result panel.
