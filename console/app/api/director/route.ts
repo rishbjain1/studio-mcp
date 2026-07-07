@@ -160,24 +160,51 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// Demo mode: a scripted direction session so the deployed demo shows the flow.
+// Demo mode: a scripted direction session so the deployed demo shows the full
+// arc — the director inspects, QCs a shot, and assembles the cut. Mirrors what
+// a live run produces; instruments return the MARÉA fixtures.
 function demoStream(): Response {
   const script = [
-    { type: "text", text: "Checking where the project stands before touching anything." },
+    { type: "text", text: "Let me see where MARÉA stands before deciding what to shoot." },
     { type: "tool_call", name: "project_status", args: { project: "marea" } },
     {
       type: "tool_result",
       name: "project_status",
       ok: true,
       latencyMs: 42,
-      preview: '{"project": "marea", "has_plan": true, "shots": 3, "has_lock": true}',
+      preview:
+        '{"project": "marea", "has_plan": true, "shots": 3, "has_lock": true, "qc_done": [1,2,3], "has_manifest": true}',
+    },
+    {
+      type: "text",
+      text: "All three shots are QC'd. Let me confirm shot 2 held against the locked look.",
+    },
+    { type: "tool_call", name: "qc_still", args: { project: "marea", shot_id: 2 } },
+    {
+      type: "tool_result",
+      name: "qc_still",
+      ok: true,
+      latencyMs: 1180,
+      preview: '{"scores": {"intent": 89, "look": 92, "character": 86}, "pass": true}',
+    },
+    {
+      type: "text",
+      text: "Passed — look 92, on-palette. Everything's clean, so I'll build the cut.",
+    },
+    { type: "tool_call", name: "assemble", args: { project: "marea" } },
+    {
+      type: "tool_result",
+      name: "assemble",
+      ok: true,
+      latencyMs: 63,
+      preview: '{"title": "MARÉA — dawn swim", "total_duration_s": 10, "timeline": "3 shots"}',
     },
     {
       type: "text",
       text:
-        "Plan and lock are in place, three shots, no manifest yet. " +
-        "Next step would be assemble — say the word and I'll build the cut manifest. " +
-        "(Demo mode: instruments return fixtures.)",
+        "Cut assembled — MARÉA · dawn swim, 3 shots, 10s, diegetic sound only, " +
+        "ready to render finals or hand to the NLE. (Demo mode: instruments " +
+        "returned sample data from the MARÉA project.)",
     },
     { type: "done" },
   ];
