@@ -31,6 +31,15 @@ def test_extract_invalid_returns_none():
     assert llm._extract_json("not json at all") is None
 
 
+def test_data_url_reads_local_file(tmp_path):
+    image = tmp_path / "image.png"
+    image.write_bytes(b"small image")
+
+    result = llm._data_url(str(image))
+
+    assert result.startswith("data:image/png;base64,")
+
+
 # --- render helpers ---
 def test_urls_walks_nested():
     obj = {"x": [{"url": "https://a.png"}, {"y": "https://b.mp4"}], "z": "no"}

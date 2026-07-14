@@ -123,7 +123,7 @@ Register with an MCP client (e.g. Claude Code / Claude Desktop):
 
 ```
 plan_shots("MARÉA — wordless coastal slow-burn, 90s", project="marea")
-lock_campaign("marea", aspect="2.39:1", stock="Kodak 500T, soft handheld",
+lock_campaign("marea", aspect="21:9", day_stock="Kodak 500T, soft handheld",
               hex_palette=["#1b2a3a","#c8a15a"], elements=["the woman in grey"],
               audio="diegetic SFX only, no music")
 # render a still (v1.1) → then:
